@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import {
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // Reusable components
@@ -273,16 +273,11 @@ export default function ASEForm({
   user,
   onSave,
   onBack,
-   currentStep,
-  sectionsStatus,
-
 }: {
   inspectionASE: any;
   user: any;
   onSave?: (data: any) => void;
   onBack?: () => void;
-   currentStep?: string;
-  sectionsStatus?: Record<string, boolean>;
 }) {
   // ===== SECTION 1: Workplace Safety and Health Measures =====
   const [cleanlinessWorkplace, setCleanlinessWorkplace] = useState(
