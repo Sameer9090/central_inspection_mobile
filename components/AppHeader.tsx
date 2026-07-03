@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useState } from "react";
+import { Image } from "react-native";
 import {
   Modal,
   StatusBar,
@@ -34,14 +35,18 @@ export default function AppHeader() {
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
-      
+
       {/* ✅ WRAP in SafeAreaView with edges=["top"] */}
       <SafeAreaView edges={["top"]} style={{ backgroundColor: "#1a1a4e" }}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <View style={styles.govBadge}>
-                <Text style={styles.govBadgeText}>GOVT</Text>
+                <Image
+                  source={require("../assets/images/assam-government-emblem.png")}
+                  style={styles.govLogo}
+                  resizeMode="contain"
+                />
               </View>
               <View>
                 <Text style={styles.deptTitle}>GOVERNMENT OF ASSAM</Text>
@@ -113,11 +118,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
-  },
-  govBadgeText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#1a1a4e",
   },
   deptTitle: {
     color: "#fff",
@@ -210,4 +210,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
+  govLogo: {
+    width: 32,
+    height: 32,
+  },
+
 });

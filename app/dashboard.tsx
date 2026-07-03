@@ -2,6 +2,7 @@ import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MapPin } from "lucide-react-native";
 import {
   Alert,
   Animated,
@@ -184,8 +185,9 @@ export default function DashboardScreen() {
       { title: "APPLICATIONS FORWARDED", value: stats.applications_forwarded, icon: Icons.Send, color: "#7B68EE", route: "/applications/forwarded" },
       {
         title: "TRACK APPLICATIONS",
-        value: "1",
-        icon: Icons.FileText,
+        value: "",
+        subtitle: "Search • Track • History",
+        icon: Icons.MapPin,
         color: "#2563EB",
         route: "/track",
       },
@@ -198,7 +200,7 @@ export default function DashboardScreen() {
 
       return card.value > 0;
     });
-    
+
   };
 
   if (loading) {
@@ -276,7 +278,11 @@ export default function DashboardScreen() {
                     <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
                     <card.icon />
                   </View>
-                  <Text style={styles.cardValue}>{card.value}</Text>
+                  {card.value ? (
+                    <Text style={styles.cardValue}>{card.value}</Text>
+                  ) : (
+                    <View style={{ height: 36 }} />
+                  )}
                   <View style={styles.cardDivider} />
                   <View style={styles.cardFooter}>
                     <Text style={styles.cardLink}>View Details</Text>
@@ -346,7 +352,7 @@ const styles = StyleSheet.create({
   },
   // ✅ REMOVED: header styles (now in AppHeader component)
   // header, headerTop, headerLeft, govBadge, etc. all removed
-  
+
   scrollView: {
     flex: 1,
   },
