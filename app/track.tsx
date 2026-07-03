@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
+import AppHeader from "../components/AppHeader";
 import {
     SafeAreaView,
     StyleSheet,
@@ -122,7 +123,10 @@ export default function TrackScreen() {
     }
 
     return (
+        <>
+        <AppHeader />
         <SafeAreaView style={styles.container}>
+
             <FlatList
                 data={applications}
                 keyExtractor={(item, index) =>
@@ -316,6 +320,7 @@ export default function TrackScreen() {
 
             />
         </SafeAreaView>
+        </>
 
     );
 }

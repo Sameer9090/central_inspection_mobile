@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import AppHeader from "../components/AppHeader";
 import {
     SafeAreaView,
     View,
@@ -47,6 +48,8 @@ export default function TrackHistoryScreen() {
     }
 
     return (
+        <>
+        <AppHeader />
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
 
@@ -154,6 +157,7 @@ export default function TrackHistoryScreen() {
                 )}
             />
         </SafeAreaView>
+        </>
     );
 }
 
