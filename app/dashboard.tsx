@@ -182,8 +182,23 @@ export default function DashboardScreen() {
     const allCards = [
       { title: "APPLICATIONS IN QUEUE", value: stats.applications_in_queue, icon: Icons.FileText, color: "#4A90D9", route: "/applications" },
       { title: "APPLICATIONS FORWARDED", value: stats.applications_forwarded, icon: Icons.Send, color: "#7B68EE", route: "/applications/forwarded" },
+      {
+        title: "TRACK APPLICATIONS",
+        value: "1",
+        icon: Icons.FileText,
+        color: "#2563EB",
+        route: "/track",
+      },
+
     ];
-    return allCards.filter((card) => card.value > 0);
+    return allCards.filter((card) => {
+      if (card.route === "/track") {
+        return true;
+      }
+
+      return card.value > 0;
+    });
+    
   };
 
   if (loading) {
