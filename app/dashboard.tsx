@@ -222,6 +222,13 @@ export default function DashboardScreen() {
         color: "#7B68EE",
         route: "/applications/forwarded",
       },
+      {
+        title: "TRACK APPLICATIONS",
+        value: "1",
+        icon: Icons.FileText,
+        color: "#2563EB",
+        route: "/track",
+      },
       // {
       //   title: "INSPECTIONS COMPLETED",
       //   value: stats.inspections_completed,
@@ -273,7 +280,14 @@ export default function DashboardScreen() {
       // },
     ];
 
-    return allCards.filter((card) => card.value > 0);
+    // return allCards.filter((card) => card.value > 0);
+    return allCards.filter((card) => {
+      if (card.route === "/track") {
+        return true;
+      }
+
+      return card.value > 0;
+    });
   };
 
   if (loading) {
