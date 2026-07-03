@@ -1,457 +1,394 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
-import { API } from "../../services/api";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AppHeader from "../components/AppHeader";
 
-import AseSection from "./ASEForm";
-import CommonSection from "./CommonSection";
-import ContractSection from "./ContractSection";
-import MinimumWageSection from "./MinimumWageSection";
-import OtpModal from "./OtpModal";
-import PreviewSection from "./PreviewSection";
+import ASEForm from "../components/inspection/ASEForm";
+import CommonForm from "../components/inspection/CommonForm";
+import ContractForm from "../components/inspection/ContractForm";
+import MinimumWageForm from "../components/inspection/MinimumWageForm";
+
+import { API } from "../services/api";
+import { getCurrentLocation, GPSLocation } from "../utils/location";
 
 export default function InspectionFormScreen() {
   const { refNo } = useLocalSearchParams();
+
+  const [application, setApplication] = useState<any>(null);
+  const [common, setCommon] = useState<any>(null);
+  const [inspectionASE, setinspectionASE] = useState<any>({});
+  const [inspectionContract, setinspectionContract] = useState<any>({});
+  const [inspectionMW, setinspectionMW] = useState<any>({});
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [currentStep, setCurrentStep] = useState("common");
+  const [gpsAcquiring, setGpsAcquiring] = useState(false);
 
-  const [commonData, setCommonData] = useState({
-    ubin: "",
-    application_ref_no: refNo || "",
-    submission_location: "",
-    name_of_inspector: "",
-    date_of_inspection: new Date().toISOString().split("T")[0],
-    empl_first_name: "",
-    empl_last_name: "",
-    empl_mobile_no: "",
-    empl_alt_mobile_no: "",
-    empl_email: "",
-    est_address_1: "",
-    est_address_2: "",
-    est_address_3: "",
-    est_landmark: "",
-    est_district: "",
-    est_ward_no: "",
-    inspection_photo_path: "",
-    empl_sign_path: "",
-    inspector_sign_path: "",
-    selected_types: [],
-  });
-
-  const [aseData, setAseData] = useState({
-    cleanliness_workplace_ase: "No",
-    adequate_lighting_ase: "No",
-    proper_ventilation_ase: "No",
-    fire_prevention_measures_ase: "No",
-    accident_prevention_ase: "No",
-    drinking_water_ase: "No",
-    latrine_urinal_ase: "No",
-    first_aid_ase: "No",
-    creche_facility_ase: "No",
-    canteen_ase: "No",
-    issue_of_appointment_letters_ase: "",
-    issue_of_identity_card_ase: "",
-    issue_of_payslip_ase: "",
-    applicable_of_ESIC_ase: "",
-    ESIC_ase_no_of_empl: "",
-    maintenance_of_registers_ase: "",
-    whether_annual_rep_submitted_ase: "",
-    is_adolescent_employed_ase: "",
-    adolescent_details_ase: [],
-    name_address_of_employer: "",
-    establishment_name: "",
-    contact_number_email: "",
-    date_of_commencement: "",
-    opening_and_closing_hours: "",
-    certificate_registration_date: "",
-    registration_number: "",
-    certificate_renewal_obtained: "",
-    whether_certificate_displayed: "",
-    permanent_unskilled_male: "",
-    permanent_unskilled_female: "",
-    permanent_semiskilled_male: "",
-    permanent_semiskilled_female: "",
-    permanent_skilled_male: "",
-    permanent_skilled_female: "",
-    temporary_unskilled_male: "",
-    temporary_unskilled_female: "",
-    temporary_semiskilled_male: "",
-    temporary_semiskilled_female: "",
-    temporary_skilled_male: "",
-    temporary_skilled_female: "",
-    temporary_apprentice_male: "",
-    temporary_apprentice_female: "",
-    contract_unskilled_male: "",
-    contract_unskilled_female: "",
-    contract_semiskilled_male: "",
-    contract_semiskilled_female: "",
-    contract_skilled_male: "",
-    contract_skilled_female: "",
-    wages_paid_unskilled_male: "",
-    wages_paid_unskilled_female: "",
-    wages_paid_semiskilled_male: "",
-    wages_paid_semiskilled_female: "",
-    wages_paid_skilled_male: "",
-    wages_paid_skilled_female: "",
-    whether_notified_wages_paid: "",
-    hours_of_work_a_day: "",
-    working_hours_of_female: "",
-    whether_weekly_holidays_provided: "",
-    wheather_prescribed_reg_maintained: "",
-    register_of_hours_of_work: "",
-    register_of_overtime: "",
-    register_of_employment: "",
-    register_of_leave: "",
-    violation_of_provisions: "",
-    ase_directions: [""],
-    additional_remarks: "",
-  });
-
-  const [contractData, setContractData] = useState({
-    cleanliness_workplace_contract: "No",
-    adequate_lighting_contract: "No",
-    proper_ventilation_contract: "No",
-    fire_prevention_measures_contract: "No",
-    accident_prevention_contract: "No",
-    issue_of_appointment_letters_contract: "",
-    issue_of_identity_card_contract: "",
-    issue_of_payslip_contract: "",
-    applicable_of_ESIC_contract: "",
-    ESIC_contract_no_of_empl: "",
-    maintenance_of_registers_contract: "",
-    whether_annual_rep_submitted_contract: "",
-    is_adolescent_employed_contract: "",
-    adolescent_details_contract: [],
-    whether_license_obtained: "",
-    whether_contract_labour_numbering: "",
-    whether_notices_regarding_rates_of_wages: "",
-    whether_notice_regarding_names: "",
-    whether_copy_of_each_notice_displayed: "",
-    whether_notices_showing_wage_period: "",
-    whether_intimation_of_commencement: "",
-    whether_half_yearly_return: "",
-    whether_contractor_has_ensured_presence_of_representative: "",
-    whether_contractor_ensured_payment_of_wages: "",
-    whether_register_of_person_maintained: "",
-    whether_wage_register_maintained: "",
-    whether_contractor_obtained_sig_thumb_impression: "",
-    whether_welfare_facilities_regarding_drinking_water: "",
-    whether_contractor_creche_facility: "",
-    whether_contractor_provides_canteen_facility: "",
-    whether_contractor_prvides_rest_rooms: "",
-    whether_first_aid_provided: "",
-    whether_contractor_issued_employment_card: "",
-    whether_date_maintained_in_employment_card: "",
-    whether_contractor_issued_service_certificate: "",
-    whether_wage_slips_formxix_issued: "",
-    contract_directions: [""],
-    additional_remarks2: "",
-  });
-
-  const [mwData, setMwData] = useState({
-    issue_of_appointment_letters_mw: "",
-    issue_of_identity_card_mw: "",
-    issue_of_payslip_mw: "",
-    applicable_of_ESIC_mw: "",
-    ESIC_mw_no_of_empl: "",
-    maintenance_of_registers_mw: "",
-    whether_annual_rep_submitted_mw: "",
-    is_adolescent_employed_mw: "",
-    adolescent_details_minimumwage: [],
-    whether_master_roll_maintained: "",
-    whether_register_of_wages_maintained: "",
-    whether_fine_deductions_recorded_appropriately: "",
-    whether_wage_slips_prescribed: "",
-    whether_annual_return_form3_submitted: "",
-    no_of_employees_paid_after_statutory: "",
-    whether_overtime_registered: "",
-    number_of_cases_where_overtime_wages_not_paid: "",
-    whether_weekly_rest_is_allowed: "",
-    whether_notices_displayed_abstract_name_schedule: "",
-    whether_minimum_wages_fixed_by_govt_paid: "",
-    no_of_employees_paid_at_a_lesser_rate: "",
-    whether_register_fines_maintained: "",
-    whether_register_deduction_for_damage_maintained: "",
-    whether_register_fines_maintained_rule5: "",
-    whether_wages_paid_on_time: "",
-    whether_salaries_paid_in_their_bank_accounts: "",
-    whether_annual_return_submitted_rule17: "",
-    whether_equal_renumeration_paid_men_women_workers: "",
-    whether_register_maintained_by_employes_section8: "",
-    permanent_employees_unskilled_male: "",
-    permanent_employees_unskilled_female: "",
-    permanent_employees_semiskilled_male: "",
-    permanent_employees_semiskilled_female: "",
-    permanent_employees_skilled_male: "",
-    permanent_employees_skilled_female: "",
-    permanent_employees_highlyskilled_male: "",
-    permanent_employees_highlyskilled_female: "",
-    permanent_employees_apprentice_male: "",
-    permanent_employees_apprentice_female: "",
-    permanent_employees_remarks: "",
-    temporary_employees_unskilled_male: "",
-    temporary_employees_unskilled_female: "",
-    temporary_employees_semiskilled_male: "",
-    temporary_employees_semiskilled_female: "",
-    temporary_employees_skilled_male: "",
-    temporary_employees_skilled_female: "",
-    temporary_employees_highlyskilled_male: "",
-    temporary_employees_highlyskilled_female: "",
-    temporary_employees_remarks: "",
-    contract_employees_unskilled_male: "",
-    contract_employees_unskilled_female: "",
-    contract_employees_semiskilled_male: "",
-    contract_employees_semiskilled_female: "",
-    contract_employees_skilled_male: "",
-    contract_employees_skilled_female: "",
-    contract_employees_highlyskilled_male: "",
-    contract_employees_highlyskilled_female: "",
-    contract_employees_remarks: "",
-    workers_detail_mw: [],
-    minimumwage_directions: [""],
-    additional_remarks3: "",
-  });
-
-  const [showOtpModal, setShowOtpModal] = useState(false);
+  // Step tracking from backend
+  const [currentStep, setCurrentStep] = useState<string>("common");
+  const [sectionsStatus, setSectionsStatus] = useState<Record<string, boolean>>({});
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
   useEffect(() => {
-    loadInspectionData();
+    loadApplication();
   }, []);
 
-  const loadInspectionData = async () => {
+  const loadApplication = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const response = await API.get(`/inspection-form/${refNo}`, {
+      const encodedRefNo = encodeURIComponent(String(refNo));
+
+      const response = await API.get(`/inspection-form/${encodedRefNo}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const data = response.data;
-      if (data.commonData)
-        setCommonData((prev) => ({ ...prev, ...data.commonData }));
-      if (data.aseData) setAseData((prev) => ({ ...prev, ...data.aseData }));
-      if (data.contractData)
-        setContractData((prev) => ({ ...prev, ...data.contractData }));
-      if (data.mwData) setMwData((prev) => ({ ...prev, ...data.mwData }));
-    } catch (error) {
-      console.log("Error loading inspection data:", error);
+      setApplication(response.data.application);
+      setCommon(response.data.common);
+
+      const ase = response.data.inspections?.find(
+        (item: any) => item.inspection_type === "ASE",
+      );
+      const contract = response.data.inspections?.find(
+        (item: any) => item.inspection_type === "CONTRACT",
+      );
+      const mw = response.data.inspections?.find(
+        (item: any) => item.inspection_type === "MINIMUMWAGE",
+      );
+
+      setinspectionASE(ase?.inspection_data || {});
+      setinspectionContract(contract?.inspection_data || {});
+      setinspectionMW(mw?.inspection_data || {});
+      setUser(response.data.user || null);
+
+      // Set step data from common data
+      if (response.data.common) {
+        setCurrentStep(response.data.common.current_step || "common");
+        setSectionsStatus(response.data.common.sections_status || {});
+        setSelectedTypes(response.data.common.selected_types || []);
+      }
+    } catch (error: any) {
+      console.log(error?.response?.data);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveSection = async (section, data) => {
+  const handleCommonFormSave = async (formData: Record<string, any>) => {
+    setGpsAcquiring(true);
+    let gps: GPSLocation;
+
     try {
-      setSaving(true);
-      const token = await AsyncStorage.getItem("token");
-
-      const formData = new FormData();
-      formData.append("appl_ref_no", refNo);
-
-      Object.keys(data).forEach((key) => {
-        const value = data[key];
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
-          formData.append(key, String(value));
-        }
-      });
-
-      await API.post(`/inspection-form/${section}`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      // Move to next step
-      const steps = ["common"];
-      if (commonData.selected_types.includes("ase")) steps.push("ase");
-      if (commonData.selected_types.includes("contract"))
-        steps.push("contract");
-      if (commonData.selected_types.includes("minimumwage"))
-        steps.push("minimumwage");
-      steps.push("preview");
-
-      const currentIndex = steps.indexOf(currentStep);
-      if (currentIndex < steps.length - 1) {
-        setCurrentStep(steps[currentIndex + 1]);
+      gps = await getCurrentLocation(60000);
+    } catch (error: any) {
+      setGpsAcquiring(false);
+      if (error.message === "LOCATION_PERMISSION_DENIED") {
+        Alert.alert("Permission Required", "Location permission is required.", [{ text: "OK" }]);
+      } else if (error.message === "GPS_DISABLED") {
+        Alert.alert("GPS Required", "Please enable location services.", [{ text: "OK" }]);
+      } else if (error.message === "GPS_TIMEOUT") {
+        Alert.alert("GPS Timeout", "Could not get location. Please try again.", [{ text: "OK" }]);
+      } else {
+        Alert.alert("GPS Error", "Failed to get location. Please try again.");
       }
-    } catch (error) {
-      Alert.alert("Error", error?.response?.data?.message || "Failed to save");
-    } finally {
-      setSaving(false);
+      throw new Error("GPS_REQUIRED");
     }
-  };
 
-  const handleFinalSubmit = async () => {
-    setShowOtpModal(true);
-  };
+    const payload = {
+      ...formData,
+      application_ref_no: refNo,
+      latitude: gps.latitude,
+      longitude: gps.longitude,
+    };
 
-  const handleVerifyOtp = async (otp) => {
     try {
       const token = await AsyncStorage.getItem("token");
-      await API.post(
-        "/inspection-form/final-submit",
-        {
-          appl_ref_no: refNo,
-          otp,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const response = await API.post("/common-fields-save", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      setShowOtpModal(false);
-      Alert.alert("Success", "Inspection report submitted successfully");
-    } catch (error) {
-      Alert.alert("Error", error?.response?.data?.message || "Invalid OTP");
+      setGpsAcquiring(false);
+
+      if (response.data.status) {
+        Alert.alert("Success", "Common data saved with GPS location.");
+        setCurrentStep(response.data.next_step || "ase");
+        await loadApplication();
+      } else {
+        Alert.alert("Error", response.data.message || "Save failed");
+      }
+      return response.data;
+    } catch (error: any) {
+      setGpsAcquiring(false);
+      console.error("Save error:", error?.response?.data || error);
+      Alert.alert("Error", "Failed to save common form.");
+      throw error;
     }
   };
 
-  const getAvailableSteps = () => {
-    const steps = [{ key: "common", label: "C", color: "#1976D2" }];
-    if (commonData.selected_types.includes("ase"))
-      steps.push({ key: "ase", label: "A", color: "#28a745" });
-    if (commonData.selected_types.includes("contract"))
-      steps.push({ key: "contract", label: "CL", color: "#ffc107" });
-    if (commonData.selected_types.includes("minimumwage"))
-      steps.push({ key: "minimumwage", label: "MW", color: "#17a2b8" });
-    steps.push({ key: "preview", label: "P", color: "#6c757d" });
-    return steps;
+  const handleSectionSave = async (sectionType: string, formData: any) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const response = await API.post("/save-section", {
+        ...formData,
+        reference_number: refNo,
+        inspection_type: sectionType,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.data.status) {
+        Alert.alert("Success", `${sectionType.toUpperCase()} saved successfully`);
+        setCurrentStep(response.data.next_step || "preview");
+        await loadApplication();
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error("Save error:", error?.response?.data || error);
+      Alert.alert("Error", `Failed to save ${sectionType}`);
+      throw error;
+    }
   };
 
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {getAvailableSteps().map((step, index) => {
-        const isActive = currentStep === step.key;
-        const isPast =
-          getAvailableSteps().findIndex((s) => s.key === currentStep) > index;
-
+  // ✅ Determine which form to show based on current step
+  const renderCurrentForm = () => {
+    switch (currentStep) {
+      case "common":
         return (
-          <TouchableOpacity
-            key={step.key}
-            style={[
-              styles.stepDot,
-              isActive && { backgroundColor: step.color },
-              isPast && { backgroundColor: "#2E7D32" },
-            ]}
-            onPress={() => {
-              if (isPast || step.key === "common") setCurrentStep(step.key);
-            }}
-          >
-            <Text
-              style={[
-                styles.stepText,
-                (isActive || isPast) && styles.stepTextActive,
-              ]}
-            >
-              {step.label}
-            </Text>
-          </TouchableOpacity>
+          <CommonForm
+            application={application}
+            common={common}
+            user={user}
+            onSave={handleCommonFormSave}
+            gpsAcquiring={gpsAcquiring}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+          />
         );
-      })}
-    </View>
-  );
+      case "ase":
+        return (
+          <ASEForm
+            inspectionASE={inspectionASE}
+            user={user}
+            onSave={(data) => handleSectionSave("ase", data)}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+          />
+        );
+      case "contract":
+        return (
+          <ContractForm
+            inspectionContract={inspectionContract}
+            user={user}
+            onSave={(data) => handleSectionSave("contract", data)}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+          />
+        );
+      case "minimumwage":
+        return (
+          <MinimumWageForm
+            inspectionMW={inspectionMW}
+            user={user}
+            onSave={(data) => handleSectionSave("minimumwage", data)}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+          />
+        );
+      case "preview":
+        return <PreviewForm application={application} common={common} />;
+      default:
+        return (
+          <CommonForm
+            application={application}
+            common={common}
+            user={user}
+            onSave={handleCommonFormSave}
+            gpsAcquiring={gpsAcquiring}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+          />
+        );
+    }
+  };
+
+  // ✅ Get step label for display
+  const getStepLabel = (step: string) => {
+    const labels: Record<string, string> = {
+      common: "Common Details",
+      ase: "ASE Inspection",
+      contract: "Contract Labour",
+      minimumwage: "Minimum Wage",
+      preview: "Preview & Submit",
+    };
+    return labels[step] || step;
+  };
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1976D2" />
-      </View>
+      <SafeAreaView style={[styles.container, styles.center]} edges={["left", "right", "bottom"]}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
+        <AppHeader />
+        <ActivityIndicator size="large" color="#1a1a4e" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView}>
-        <Text style={styles.title}>Inspection Report Form</Text>
-        <Text style={styles.subtitle}>Ref No: {refNo}</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }} edges={["left", "right", "bottom"]}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
+      <AppHeader />
+      
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Step Progress Indicator */}
+        <StepProgressIndicator
+          currentStep={currentStep}
+          sectionsStatus={sectionsStatus}
+          selectedTypes={selectedTypes}
+        />
 
-        {renderStepIndicator()}
+        {/* ✅ Current Step Indicator */}
+        <View style={styles.currentStepBanner}>
+          <Text style={styles.currentStepLabel}>You are here:</Text>
+          <Text style={styles.currentStepValue}>{getStepLabel(currentStep)}</Text>
+        </View>
 
-        {currentStep === "common" && (
-          <CommonSection
-            data={commonData}
-            onChange={setCommonData}
-            onSave={() => handleSaveSection("common", commonData)}
-            saving={saving}
-          />
-        )}
+        {/* Application Info Cards */}
+        <View style={styles.card}>
+          <Text style={styles.label}>UBIN</Text>
+          <Text style={styles.value}>{application?.ubin}</Text>
+        </View>
 
-        {currentStep === "ase" && commonData.selected_types.includes("ase") && (
-          <AseSection
-            data={aseData}
-            onChange={setAseData}
-            onSave={() => handleSaveSection("ase", aseData)}
-            onBack={() => setCurrentStep("common")}
-            saving={saving}
-          />
-        )}
+        <View style={styles.card}>
+          <Text style={styles.label}>Application Number</Text>
+          <Text style={styles.value}>{application?.appl_ref_no}</Text>
+        </View>
 
-        {currentStep === "contract" &&
-          commonData.selected_types.includes("contract") && (
-            <ContractSection
-              data={contractData}
-              onChange={setContractData}
-              onSave={() => handleSaveSection("contract", contractData)}
-              onBack={() => {
-                if (commonData.selected_types.includes("ase"))
-                  setCurrentStep("ase");
-                else setCurrentStep("common");
-              }}
-              saving={saving}
-            />
-          )}
+        <View style={styles.card}>
+          <Text style={styles.label}>Establishment Name</Text>
+          <Text style={styles.value}>{application?.name_of_the_establishment}</Text>
+        </View>
 
-        {currentStep === "minimumwage" &&
-          commonData.selected_types.includes("minimumwage") && (
-            <MinimumWageSection
-              data={mwData}
-              onChange={setMwData}
-              onSave={() => handleSaveSection("minimumwage", mwData)}
-              onBack={() => {
-                if (commonData.selected_types.includes("contract"))
-                  setCurrentStep("contract");
-                else if (commonData.selected_types.includes("ase"))
-                  setCurrentStep("ase");
-                else setCurrentStep("common");
-              }}
-              saving={saving}
-            />
-          )}
+        <View style={styles.card}>
+          <Text style={styles.label}>Submission Location</Text>
+          <Text style={styles.value}>{application?.submission_location}</Text>
+        </View>
 
-        {currentStep === "preview" && (
-          <PreviewSection
-            commonData={commonData}
-            aseData={aseData}
-            contractData={contractData}
-            mwData={mwData}
-            onEdit={(section) => setCurrentStep(section)}
-            onSubmit={handleFinalSubmit}
-          />
-        )}
+        <View style={styles.card}>
+          <Text style={styles.label}>Name Of the Inspector</Text>
+          <Text style={styles.value}>{`${user?.firstname} ${user?.lastname}`}</Text>
+        </View>
+
+        {/* ✅ Only show the CURRENT step form */}
+        {renderCurrentForm()}
+
       </ScrollView>
+    </SafeAreaView>
+  );
+}
 
-      <OtpModal
-        visible={showOtpModal}
-        onClose={() => setShowOtpModal(false)}
-        onVerify={handleVerifyOtp}
-        mobileNumber={commonData.empl_mobile_no}
-      />
-    </KeyboardAvoidingView>
+// Step Progress Indicator Component
+function StepProgressIndicator({
+  currentStep,
+  sectionsStatus,
+  selectedTypes,
+}: {
+  currentStep: string;
+  sectionsStatus: Record<string, boolean>;
+  selectedTypes: string[];
+}) {
+  const steps = [
+    { key: "common", label: "Common", icon: "📋" },
+    { key: "ase", label: "ASE", icon: "🏭" },
+    { key: "contract", label: "Contract", icon: "📝" },
+    { key: "minimumwage", label: "Min. Wage", icon: "💰" },
+    { key: "preview", label: "Preview", icon: "👁️" },
+  ];
+
+  const getStepStatus = (stepKey: string) => {
+    if (!selectedTypes.includes(stepKey) && stepKey !== "common" && stepKey !== "preview") {
+      return "skipped";
+    }
+    if (sectionsStatus[stepKey] === true) return "completed";
+    if (currentStep === stepKey) return "current";
+    return "pending";
+  };
+
+  return (
+    <View style={styles.progressContainer}>
+      <Text style={styles.progressTitle}>Inspection Progress</Text>
+      <View style={styles.stepsRow}>
+        {steps.map((step, index) => {
+          const status = getStepStatus(step.key);
+          const isLast = index === steps.length - 1;
+
+          return (
+            <React.Fragment key={step.key}>
+              <View style={styles.stepItem}>
+                <View
+                  style={[
+                    styles.stepCircle,
+                    status === "completed" && styles.stepCompleted,
+                    status === "current" && styles.stepCurrent,
+                    status === "skipped" && styles.stepSkipped,
+                  ]}
+                >
+                  {status === "completed" ? (
+                    <Text style={styles.stepCheck}>✓</Text>
+                  ) : status === "skipped" ? (
+                    <Text style={styles.stepSkip}>−</Text>
+                  ) : (
+                    <Text style={styles.stepIcon}>{step.icon}</Text>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    status === "current" && styles.stepLabelCurrent,
+                    status === "skipped" && styles.stepLabelSkipped,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {step.label}
+                </Text>
+              </View>
+              {!isLast && (
+                <View
+                  style={[
+                    styles.stepLine,
+                    status === "completed" && styles.stepLineCompleted,
+                  ]}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// Preview Form Component (for final step)
+function PreviewForm({ application, common }: { application: any; common: any }) {
+  return (
+    <View style={styles.previewContainer}>
+      <Text style={styles.previewTitle}>Review & Submit</Text>
+      <Text style={styles.previewText}>
+        All sections completed. Review your inspection data before final submission.
+      </Text>
+      <TouchableOpacity style={styles.submitButton}>
+        <Text style={styles.submitButtonText}>Submit Inspection</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -460,47 +397,173 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
-  scrollView: {
-    flex: 1,
-    padding: 15,
-  },
   center: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 5,
-    color: "#333",
-  },
-  subtitle: {
+  loadingText: {
+    marginTop: 12,
     fontSize: 14,
     color: "#666",
-    marginBottom: 15,
+    fontWeight: "500",
   },
-  stepIndicator: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 15,
+    paddingBottom: 30,
+  },
+  currentStepBanner: {
+    backgroundColor: "#E3F2FD",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#1976D2",
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
     gap: 8,
   },
-  stepDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#e0e0e0",
+  currentStepLabel: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "500",
+  },
+  currentStepValue: {
+    fontSize: 14,
+    color: "#1976D2",
+    fontWeight: "700",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 12,
+    elevation: 3,
+  },
+  label: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 5,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Progress indicator styles
+  progressContainer: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  progressTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1a1a4e",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  stepsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  stepItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  stepCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#E8EAF6",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#C5CAE9",
   },
-  stepText: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: "#666",
+  stepCompleted: {
+    backgroundColor: "#2ECC71",
+    borderColor: "#2ECC71",
   },
-  stepTextActive: {
+  stepCurrent: {
+    backgroundColor: "#1976D2",
+    borderColor: "#1976D2",
+    transform: [{ scale: 1.1 }],
+  },
+  stepSkipped: {
+    backgroundColor: "#f0f0f0",
+    borderColor: "#ddd",
+  },
+  stepCheck: {
     color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  stepSkip: {
+    color: "#999",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  stepIcon: {
+    fontSize: 14,
+  },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#666",
+    marginTop: 6,
+    textAlign: "center",
+  },
+  stepLabelCurrent: {
+    color: "#1976D2",
+    fontWeight: "700",
+  },
+  stepLabelSkipped: {
+    color: "#bbb",
+  },
+  stepLine: {
+    width: 20,
+    height: 2,
+    backgroundColor: "#E8EAF6",
+    marginHorizontal: -4,
+  },
+  stepLineCompleted: {
+    backgroundColor: "#2ECC71",
+  },
+  // Preview styles
+  previewContainer: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+    marginTop: 15,
+    alignItems: "center",
+  },
+  previewTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1a1a4e",
+    marginBottom: 10,
+  },
+  previewText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  submitButton: {
+    backgroundColor: "#2ECC71",
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 10,
+  },
+  submitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

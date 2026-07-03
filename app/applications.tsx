@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AppHeader from "../components/AppHeader";
 
 import { API } from "../services/api";
 
@@ -173,10 +174,10 @@ export default function ApplicationsScreen() {
     return (
       <SafeAreaView
         style={[styles.container, styles.center]}
-        edges={["top", "left", "right"]}
+        edges={[ "left", "right"]}
       >
+        <AppHeader />
         <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
-        <View style={styles.statusBarBg} />
         <ActivityIndicator size="large" color="#1a1a4e" />
         <Text style={styles.loadingText}>Loading Applications...</Text>
       </SafeAreaView>
@@ -184,27 +185,27 @@ export default function ApplicationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.container} edges={[ "left", "right","bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
 
-      {/* Just a thin status bar background, no extra spacer */}
-      <View style={styles.statusBarBg} />
+      {/* ✅ FIXED: AppHeader at top */}
+      <AppHeader />
 
-      {/* Compact Header - single row, minimal padding */}
-      <View style={styles.header}>
+      {/* ✅ FIXED: Page header as a separate white/light section below AppHeader */}
+      <View style={styles.pageHeader}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Icons.ArrowLeft />
+          <Feather name="arrow-left" size={20} color="#1a1a4e" />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Applications</Text>
-          <Text style={styles.headerSubtitle}>
+        <View style={styles.pageHeaderCenter}>
+          <Text style={styles.pageHeaderTitle}>Applications</Text>
+          <Text style={styles.pageHeaderSubtitle}>
             In Queue • {filteredApplications.length}
           </Text>
         </View>
-        <View style={styles.headerRight} />
+        <View style={styles.pageHeaderRight} />
       </View>
 
       {/* Search & Filter Section */}
@@ -232,7 +233,7 @@ export default function ApplicationsScreen() {
             onPress={() => setShowLocationDropdown(!showLocationDropdown)}
           >
             <View style={styles.locationDropdownLeft}>
-              <Icons.Filter />
+              <Feather name="filter" size={14} color="#1a1a4e" />
               <Text
                 style={[
                   styles.locationDropdownText,
@@ -595,68 +596,65 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Thin status bar background only
-  statusBarBg: {
-    height: STATUS_BAR_HEIGHT,
-    backgroundColor: "#1a1a4e",
-  },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
     color: "#666",
     fontWeight: "500",
   },
-  // Compact Header - minimal height
-  header: {
-    backgroundColor: "#1a1a4e",
+  // ✅ FIXED: Page header — white background, separate from AppHeader
+  pageHeader: {
+    backgroundColor: "#fff",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e8eaf6",
   },
   backButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f0f2f5",
     justifyContent: "center",
     alignItems: "center",
   },
-  headerCenter: {
+  pageHeaderCenter: {
     alignItems: "center",
     flex: 1,
   },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 16,
+  pageHeaderTitle: {
+    color: "#1a1a4e",
+    fontSize: 18,
     fontWeight: "700",
   },
-  headerSubtitle: {
-    color: "#8ab4d9",
-    fontSize: 11,
+  pageHeaderSubtitle: {
+    color: "#888",
+    fontSize: 12,
     fontWeight: "500",
-    marginTop: 1,
+    marginTop: 2,
   },
-  headerRight: {
-    width: 32,
+  pageHeaderRight: {
+    width: 36,
   },
   // Filter Section
   filterContainer: {
     backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#e8eaf6",
-    gap: 8,
+    gap: 10,
   },
   searchWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f2f5",
+    backgroundColor: "#f5f6f8",
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     gap: 8,
   },
   searchInput: {
@@ -669,17 +667,17 @@ const styles = StyleSheet.create({
   locationFilterWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   locationDropdown: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f0f2f5",
+    backgroundColor: "#f5f6f8",
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   locationDropdownLeft: {
     flexDirection: "row",
@@ -698,9 +696,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   clearFilterBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#ffebee",
     justifyContent: "center",
     alignItems: "center",
@@ -708,9 +706,9 @@ const styles = StyleSheet.create({
   // Dropdown
   dropdownContainer: {
     backgroundColor: "#fff",
-    marginHorizontal: 12,
-    marginTop: -4,
-    marginBottom: 6,
+    marginHorizontal: 16,
+    marginTop: -6,
+    marginBottom: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#e8eaf6",
@@ -748,7 +746,7 @@ const styles = StyleSheet.create({
   },
   // List
   listContent: {
-    padding: 12,
+    padding: 16,
     paddingBottom: 8,
   },
   // Card
@@ -769,7 +767,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
+    padding: 14,
     paddingBottom: 8,
   },
   refBadge: {
@@ -809,7 +807,7 @@ const styles = StyleSheet.create({
     color: "#2e7d32",
   },
   cardBody: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingBottom: 8,
   },
   establishment: {
@@ -834,11 +832,11 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: "#e8eaf6",
-    marginHorizontal: 12,
+    marginHorizontal: 14,
   },
   // Date Section
   dateSection: {
-    padding: 12,
+    padding: 14,
     backgroundColor: "#fafbfc",
   },
   dateLabel: {
@@ -953,7 +951,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 6,
   },

@@ -1,19 +1,18 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useLocalSearchParams } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { API } from "../services/api";
 
