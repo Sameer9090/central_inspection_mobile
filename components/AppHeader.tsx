@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useState } from "react";
+import { useNotification } from "../context/NotificationContext";
 import { Image } from "react-native";
 import {
   Modal,
@@ -18,6 +19,16 @@ import { API } from "../services/api";
 
 export default function AppHeader() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const { unreadCount } = useNotification();
+
+  const loadUnreadCount = async () => {
+    try {
+      const count = await getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.log("Unread Count Error:", error);
+    }
+  };
 
   const logout = async () => {
     try {
@@ -31,6 +42,8 @@ export default function AppHeader() {
       console.log(error);
     }
   };
+
+  
 
   return (
     <>
@@ -54,11 +67,19 @@ export default function AppHeader() {
               </View>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.iconButton}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => router.push("/notifications")}
+              >
                 <Feather name="bell" size={22} color="#fff" />
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>3</Text>
-                </View>
+
+                {unreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconButton}
