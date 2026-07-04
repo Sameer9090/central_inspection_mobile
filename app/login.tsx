@@ -17,8 +17,8 @@ import {
 
 import { router } from "expo-router";
 import { API } from "../services/api";
+import { encryptPassword } from "../utils/encryption";
 
-// Import your CIS logo
 const CIS_LOGO = require("../assets/images/cis_new.png");
 
 export default function LoginScreen() {
@@ -59,8 +59,8 @@ export default function LoginScreen() {
 
     if (!password) {
       newErrors.password = "Password is required";
-    } else if (password.length < 4) {
-      newErrors.password = "Password must be at least 4 characters";
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
     }
 
     setErrors(newErrors);
@@ -74,27 +74,44 @@ export default function LoginScreen() {
     Keyboard.dismiss();
 
     try {
+      const encryptedPassword = encryptPassword(password);
+
       const response = await API.post("/login", {
         username: username.trim(),
-        password,
+        password: encryptedPassword,
       });
 
       if (response.data.success) {
+        console.log("Login successful", response.data);
         setPassword("");
 
+        // Pass role to OTP screen for role-based routing
         router.push({
           pathname: "/otp",
-          params: { username: username.trim() },
+          params: {
+            username: username.trim(),
+            fullname: response.data.fullname || "",
+            phone: response.data.phone || "",
+            role: response.data.role || "office",
+          },
         });
       }
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        "Unable to connect. Please try again.";
+      console.log("========== API ERROR ==========");
+    console.log("Message:", error.message);
+    console.log("Status:", error.response?.status);
+    console.log("URL:", error.config?.baseURL + error.config?.url);
+    console.log("Request:", error.config?.data);
+    console.log("Response:", error.response?.data);
+    console.log("Headers:", error.config?.headers);
+    console.log("===============================");
 
-      Alert.alert("Login Failed", message, [
-        { text: "OK", onPress: () => passwordRef.current?.focus() },
-      ]);
+    Alert.alert(
+      "Login Failed",
+      error.response?.data?.message ||
+        JSON.stringify(error.response?.data) ||
+        error.message
+    );
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +131,6 @@ export default function LoginScreen() {
             { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
           ]}
         >
-          {/* Header with CIS Logo */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Image
@@ -127,7 +143,6 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>Official Government Portal</Text>
           </View>
 
-          {/* Login Form */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Username</Text>
@@ -212,7 +227,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               © 2026 Central Inspection System
@@ -228,7 +242,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a3d62", // Deep navy blue matching logo
+    backgroundColor: "#0a3d62",
   },
   content: {
     flex: 1,
@@ -335,7 +349,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   loginButton: {
-    backgroundColor: "#0066cc", // CIS blue
+    backgroundColor: "#0066cc",
     padding: 16,
     borderRadius: 12,
     alignItems: "center",

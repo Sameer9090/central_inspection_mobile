@@ -4,7 +4,9 @@ import { API } from "./api";
 export const getNotifications = async () => {
 
     const token = await AsyncStorage.getItem("token");
-
+    if (!token) {
+        throw new Error("User not authenticated");
+    }
     const response = await API.get(
         "/notifications",
         {
@@ -22,6 +24,9 @@ export const markNotificationRead = async (
 ) => {
 
     const token = await AsyncStorage.getItem("token");
+    if (!token) {
+        throw new Error("User not authenticated");
+    }
 
     const response = await API.post(
         `/notifications/read/${id}`,
@@ -39,6 +44,9 @@ export const markNotificationRead = async (
 export const markAllNotificationsRead = async () => {
 
     const token = await AsyncStorage.getItem("token");
+    if (!token) {
+        throw new Error("User not authenticated");
+    }
 
     const response = await API.post(
         "/notifications/mark-all-read",
@@ -54,17 +62,18 @@ export const markAllNotificationsRead = async () => {
 };
 
 export const getUnreadNotificationCount = async () => {
+  const token = await AsyncStorage.getItem("token");
 
-    const token = await AsyncStorage.getItem("token");
+  // User is not logged in
+  if (!token) {
+    return 0;
+  }
 
-    const response = await API.get(
-        "/notifications/unread-count",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
+  const response = await API.get("/notifications/unread-count", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-    return response.data.count;
+  return response.data.count;
 };

@@ -28,9 +28,10 @@ export default function CommonForm({
   sectionsStatus?: Record<string, boolean>;
 }) {
   const commonData = common?.common_data || {};
-  console.log(common);
 
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [apiError, setApiError] = useState<string>("");
 
   const isCompleted = sectionsStatus?.common === true;
   const isCurrent = currentStep === "common";
@@ -100,10 +101,22 @@ export default function CommonForm({
 
   const [gpsStatus, setGpsStatus] = useState<"idle" | "waiting" | "success" | "failed">("idle");
 
+  // Helper to get first error message for a field
+  const getFieldError = (fieldName: string): string => {
+    return errors[fieldName]?.[0] || "";
+  };
+
+  // Helper to check if field has error
+  const hasFieldError = (fieldName: string): boolean => {
+    return !!errors[fieldName]?.length;
+  };
+
   const handleSave = async () => {
     setSaving(true);
+    setErrors({});
+    setApiError("");
     setGpsStatus("waiting");
-    
+
     try {
       const formSelector: string[] = [];
       if (ase) formSelector.push("ase");
@@ -140,6 +153,14 @@ export default function CommonForm({
       setGpsStatus("success");
     } catch (error: any) {
       setGpsStatus("failed");
+
+      // Handle validation errors from backend
+      if (error?.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+      }
+      if (error?.response?.data?.message) {
+        setApiError(error.response.data.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -149,20 +170,28 @@ export default function CommonForm({
 
   return (
     <View style={styles.container}>
-      {/* ✅ FIXED: Single header with title + status badge */}
+      {/* Header with title + status badge */}
       <View style={styles.stepHeader}>
         <Text style={styles.sectionTitle}>Common Inspection Details</Text>
         <View style={[
           styles.statusBadge,
           isCompleted ? styles.statusBadgeCompleted : isCurrent ? styles.statusBadgeCurrent : styles.statusBadgePending
         ]}>
-          <Text style={styles.statusBadgeText}>
+          <Text style={[
+            styles.statusBadgeText,
+            isCompleted ? styles.statusBadgeTextCompleted : isCurrent ? styles.statusBadgeTextCurrent : styles.statusBadgeTextPending
+          ]}>
             {isCompleted ? "✓ Completed" : isCurrent ? "● Current" : "○ Pending"}
           </Text>
         </View>
       </View>
 
-      {/* ✅ REMOVED: Duplicate <Text style={styles.sectionTitle}>... was here */}
+      {/* API Error Banner */}
+      {apiError ? (
+        <View style={styles.apiErrorBanner}>
+          <Text style={styles.apiErrorText}>⚠ {apiError}</Text>
+        </View>
+      ) : null}
 
       {/* GPS Status Banner */}
       {gpsStatus === "waiting" && (
@@ -173,8 +202,8 @@ export default function CommonForm({
           </Text>
         </View>
       )}
-      
-      {gpsStatus === "failed" && (
+
+      {gpsStatus === "failed" && !Object.keys(errors).length && (
         <View style={styles.gpsFailedBanner}>
           <Text style={styles.gpsFailedText}>
             ❌ GPS Required: Please enable GPS and try again
@@ -183,136 +212,233 @@ export default function CommonForm({
       )}
 
       <Text style={styles.heading}>Inspector Details</Text>
+
       <Text style={styles.label}>Date of Inspection</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("date_of_inspection") && styles.inputError]}
         value={dateOfInspection}
         onChangeText={setDateOfInspection}
         placeholder="YYYY-MM-DD"
       />
+      {getFieldError("date_of_inspection") ? (
+        <Text style={styles.fieldError}>{getFieldError("date_of_inspection")}</Text>
+      ) : null}
 
       <Text style={styles.heading}>Employer Details</Text>
-      <Text style={styles.label}>Employer first name</Text>
+
+      <Text style={styles.label}>Employer first name <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("empl_first_name") && styles.inputError]}
         value={firstName}
         onChangeText={setFirstName}
+        placeholder="Enter first name"
       />
-      <Text style={styles.label}>Last Name</Text>
+      {getFieldError("empl_first_name") ? (
+        <Text style={styles.fieldError}>{getFieldError("empl_first_name")}</Text>
+      ) : null}
+
+      <Text style={styles.label}>Last Name <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("empl_last_name") && styles.inputError]}
         value={lastName}
         onChangeText={setLastName}
+        placeholder="Enter last name"
       />
-      <Text style={styles.label}>Mobile Number</Text>
+      {getFieldError("empl_last_name") ? (
+        <Text style={styles.fieldError}>{getFieldError("empl_last_name")}</Text>
+      ) : null}
+
+      <Text style={styles.label}>Mobile Number <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("empl_mobile_no") && styles.inputError]}
         keyboardType="phone-pad"
         value={mobile}
         onChangeText={setMobile}
+        placeholder="Enter mobile number"
+        maxLength={10}
       />
+      {getFieldError("empl_mobile_no") ? (
+        <Text style={styles.fieldError}>{getFieldError("empl_mobile_no")}</Text>
+      ) : null}
+
       <Text style={styles.label}>Alternate Mobile Number</Text>
       <TextInput
         style={styles.input}
         keyboardType="phone-pad"
         value={alternateMobile}
         onChangeText={setAlternateMobile}
+        placeholder="Enter alternate mobile"
+        maxLength={10}
       />
+
       <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        placeholder="Enter email"
       />
 
       <Text style={styles.heading}>Establishment Details</Text>
-      <Text style={styles.label}>Address 1</Text>
+
+      <Text style={styles.label}>Address 1 <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("est_address_1") && styles.inputError]}
         value={address1}
         onChangeText={setAddress1}
+        placeholder="Enter address line 1"
       />
-      <Text style={styles.label}>Address 2</Text>
+      {getFieldError("est_address_1") ? (
+        <Text style={styles.fieldError}>{getFieldError("est_address_1")}</Text>
+      ) : null}
+
+      <Text style={styles.label}>Address 2 <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("est_address_2") && styles.inputError]}
         value={address2}
         onChangeText={setAddress2}
+        placeholder="Enter address line 2"
       />
+      {getFieldError("est_address_2") ? (
+        <Text style={styles.fieldError}>{getFieldError("est_address_2")}</Text>
+      ) : null}
+
       <Text style={styles.label}>Address 3</Text>
       <TextInput
         style={styles.input}
         value={address3}
         onChangeText={setAddress3}
+        placeholder="Enter address line 3"
       />
-      <Text style={styles.label}>Landmark</Text>
+
+      <Text style={styles.label}>Landmark <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("est_landmark") && styles.inputError]}
         value={landmark}
         onChangeText={setLandmark}
+        placeholder="Enter landmark"
       />
-      <Text style={styles.label}>District</Text>
+      {getFieldError("est_landmark") ? (
+        <Text style={styles.fieldError}>{getFieldError("est_landmark")}</Text>
+      ) : null}
+
+      <Text style={styles.label}>District <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("est_district") && styles.inputError]}
         value={district}
         onChangeText={setDistrict}
+        placeholder="Enter district"
       />
-      <Text style={styles.label}>Ward No</Text>
-      <TextInput style={styles.input} value={wardNo} onChangeText={setWardNo} />
+      {getFieldError("est_district") ? (
+        <Text style={styles.fieldError}>{getFieldError("est_district")}</Text>
+      ) : null}
 
-      {district !== "Kamrup Metropolitan" && (
+      {district === "Kamrup Metropolitan" ? (
         <>
-          <Text style={styles.label}>Panchayat</Text>
+          <Text style={styles.label}>Ward No <Text style={styles.required}>*</Text></Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, hasFieldError("est_ward_no") && styles.inputError]}
+            value={wardNo}
+            onChangeText={setWardNo}
+            placeholder="Enter ward number"
+          />
+          {getFieldError("est_ward_no") ? (
+            <Text style={styles.fieldError}>{getFieldError("est_ward_no")}</Text>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <Text style={styles.label}>Panchayat <Text style={styles.required}>*</Text></Text>
+          <TextInput
+            style={[styles.input, hasFieldError("panchayat") && styles.inputError]}
             value={panchayat}
             onChangeText={setPanchayat}
+            placeholder="Enter panchayat"
           />
+          {getFieldError("panchayat") ? (
+            <Text style={styles.fieldError}>{getFieldError("panchayat")}</Text>
+          ) : null}
         </>
       )}
 
-      <Text style={styles.label}>Submission Location</Text>
+      <Text style={styles.label}>Submission Location <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, hasFieldError("submission_location") && styles.inputError]}
         value={submissionLocation}
         onChangeText={setSubmissionLocation}
+        placeholder="Enter submission location"
       />
+      {getFieldError("submission_location") ? (
+        <Text style={styles.fieldError}>{getFieldError("submission_location")}</Text>
+      ) : null}
 
-      <Text style={styles.heading}>Inspection Types</Text>
-      <View style={styles.switchRow}>
+      <Text style={styles.heading}>Inspection Types <Text style={styles.required}>*</Text></Text>
+      <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
         <Text>ASE</Text>
         <Switch value={ase} onValueChange={setAse} />
       </View>
-      <View style={styles.switchRow}>
+      <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
         <Text>Contract Labour</Text>
         <Switch value={contract} onValueChange={setContract} />
       </View>
-      <View style={styles.switchRow}>
+      <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
         <Text>Minimum Wage</Text>
         <Switch value={minimumWage} onValueChange={setMinimumWage} />
       </View>
+      {getFieldError("form_selector") ? (
+        <Text style={styles.fieldError}>{getFieldError("form_selector")}</Text>
+      ) : null}
 
       <Text style={styles.heading}>Uploads</Text>
-      <Text style={styles.heading}>Inspector Signature</Text>
+
+      <Text style={styles.label}>Inspector Signature <Text style={styles.required}>*</Text></Text>
       {user?.signature_base64 ? (
-        <Image
-          source={{
-            uri: `data:image/png;base64,${user.signature_base64}`,
-          }}
-          style={styles.signatureImage}
-          resizeMode="contain"
-        />
+        <>
+          <Image
+            source={{
+              uri: `data:image/png;base64,${user.signature_base64}`,
+            }}
+            style={[
+              styles.signatureImage,
+              hasFieldError("inspector_sign_path") && styles.imageError,
+            ]}
+            resizeMode="contain"
+          />
+          {getFieldError("inspector_sign_path") ? (
+            <Text style={styles.fieldError}>{getFieldError("inspector_sign_path")}</Text>
+          ) : null}
+        </>
       ) : (
-        <Text>No Signature Available</Text>
+        <>
+          <View style={[styles.noSignatureBox, hasFieldError("inspector_sign_path") && styles.inputError]}>
+            <Text style={styles.noSignatureText}>No Signature Available</Text>
+          </View>
+          {getFieldError("inspector_sign_path") ? (
+            <Text style={styles.fieldError}>{getFieldError("inspector_sign_path")}</Text>
+          ) : null}
+        </>
       )}
 
-      <TouchableOpacity style={styles.uploadBox}>
-        <Text>Select Establishment Photo</Text>
+      <Text style={styles.label}>Establishment Photo <Text style={styles.required}>*</Text></Text>
+      <TouchableOpacity style={[styles.uploadBox, hasFieldError("inspection_photo_path") && styles.inputError]}>
+        <Text style={photoPath ? styles.uploadBoxTextSelected : styles.uploadBoxText}>
+          {photoPath ? "✓ Photo Selected" : "Select Establishment Photo"}
+        </Text>
       </TouchableOpacity>
+      {getFieldError("inspection_photo_path") ? (
+        <Text style={styles.fieldError}>{getFieldError("inspection_photo_path")}</Text>
+      ) : null}
 
-      <TouchableOpacity style={styles.uploadBox}>
-        <Text>Select Employer Signature</Text>
+      <Text style={styles.label}>Employer Signature <Text style={styles.required}>*</Text></Text>
+      <TouchableOpacity style={[styles.uploadBox, hasFieldError("empl_sign_path") && styles.inputError]}>
+        <Text style={emplSignPath ? styles.uploadBoxTextSelected : styles.uploadBoxText}>
+          {emplSignPath ? "✓ Signature Selected" : "Select Employer Signature"}
+        </Text>
       </TouchableOpacity>
+      {getFieldError("empl_sign_path") ? (
+        <Text style={styles.fieldError}>{getFieldError("empl_sign_path")}</Text>
+      ) : null}
 
       {/* Save button with GPS status */}
       <TouchableOpacity
@@ -329,7 +455,7 @@ export default function CommonForm({
             <ActivityIndicator color="#fff" size="small" />
             <Text style={styles.saveText}>Getting GPS...</Text>
           </View>
-        ) : gpsStatus === "failed" ? (
+        ) : gpsStatus === "failed" && !Object.keys(errors).length ? (
           <Text style={styles.saveText}>Retry with GPS</Text>
         ) : (
           <Text style={styles.saveText}>Save Common Details</Text>
@@ -356,32 +482,109 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 20,
   },
+  stepHeader: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    marginBottom: 20,
+    gap: 10,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
   sectionTitle: {
     fontSize: 22,
     fontWeight: "bold",
+    color: "#1a1a4e",
+    letterSpacing: 0.3,
+  },
+  statusBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statusBadgeCompleted: {
+    backgroundColor: "#E8F5E9",
+    borderColor: "#4CAF50",
+  },
+  statusBadgeCurrent: {
+    backgroundColor: "#E3F2FD",
+    borderColor: "#1976D2",
+  },
+  statusBadgePending: {
+    backgroundColor: "#FFF3E0",
+    borderColor: "#FF9800",
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  statusBadgeTextCompleted: {
+    color: "#2E7D32",
+  },
+  statusBadgeTextCurrent: {
+    color: "#1565C0",
+  },
+  statusBadgeTextPending: {
+    color: "#E65100",
   },
   heading: {
     fontSize: 18,
     fontWeight: "600",
     marginTop: 20,
     marginBottom: 10,
+    color: "#333",
   },
   label: {
     marginBottom: 5,
     fontWeight: "500",
+    color: "#444",
+    fontSize: 14,
+  },
+  required: {
+    color: "#E53935",
+    fontWeight: "bold",
   },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 4,
+    fontSize: 14,
+    color: "#333",
+    backgroundColor: "#fafafa",
+  },
+  inputError: {
+    borderColor: "#E53935",
+    borderWidth: 1.5,
+    backgroundColor: "#FFEBEE",
+  },
+  fieldError: {
+    color: "#E53935",
+    fontSize: 12,
+    marginBottom: 10,
+    marginTop: 2,
+    fontWeight: "500",
   },
   switchRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: "#fafafa",
+  },
+  switchRowError: {
+    backgroundColor: "#FFEBEE",
+    borderWidth: 1,
+    borderColor: "#E53935",
   },
   uploadBox: {
     borderWidth: 1,
@@ -389,8 +592,18 @@ const styles = StyleSheet.create({
     borderColor: "#999",
     padding: 15,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 4,
     alignItems: "center",
+    backgroundColor: "#fafafa",
+  },
+  uploadBoxText: {
+    color: "#666",
+    fontSize: 14,
+  },
+  uploadBoxTextSelected: {
+    color: "#2E7D32",
+    fontWeight: "600",
+    fontSize: 14,
   },
   saveButton: {
     backgroundColor: "#1976D2",
@@ -419,7 +632,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    marginBottom: 15,
+    marginBottom: 4,
+  },
+  imageError: {
+    borderColor: "#E53935",
+    borderWidth: 1.5,
+  },
+  noSignatureBox: {
+    width: "100%",
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    marginBottom: 4,
+    alignItems: "center",
+    backgroundColor: "#fafafa",
+  },
+  noSignatureText: {
+    color: "#999",
+    fontSize: 14,
   },
   gpsWaitingBanner: {
     backgroundColor: "#FFF3E0",
@@ -450,29 +681,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  stepHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
+  apiErrorBanner: {
+    backgroundColor: "#FFEBEE",
+    borderLeftWidth: 4,
+    borderLeftColor: "#E53935",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusBadgeCompleted: {
-    backgroundColor: "#E8F5E9",
-  },
-  statusBadgeCurrent: {
-    backgroundColor: "#E3F2FD",
-  },
-  statusBadgePending: {
-    backgroundColor: "#FFF3E0",
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
+  apiErrorText: {
+    color: "#C62828",
+    fontSize: 14,
+    fontWeight: "600",
   },
   nextStepHint: {
     backgroundColor: "#E3F2FD",

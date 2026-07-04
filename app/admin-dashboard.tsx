@@ -1,19 +1,20 @@
-import { Feather, FontAwesome5 } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { Href, router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  Modal as RNModal,
-  RefreshControl,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Dimensions,
+    Modal as RNModal,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -24,67 +25,48 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 56) / 2;
 
 const Icons = {
-  Bell: () => <Feather name="bell" size={22} color="#fff" />,
-  LogOut: () => <Feather name="log-out" size={22} color="#fff" />,
+  Users: () => <Feather name="users" size={22} color="rgba(255,255,255,0.8)" />,
+  BarChart: () => (
+    <Feather name="bar-chart-2" size={22} color="rgba(255,255,255,0.8)" />
+  ),
   FileText: () => (
     <Feather name="file-text" size={22} color="rgba(255,255,255,0.8)" />
   ),
-  Send: () => <Feather name="send" size={22} color="rgba(255,255,255,0.8)" />,
-  CheckCircle: () => (
-    <Feather name="check-circle" size={22} color="rgba(255,255,255,0.8)" />
+  Settings: () => (
+    <Feather name="settings" size={22} color="rgba(255,255,255,0.8)" />
   ),
-  AlertTriangle: () => (
-    <Feather name="alert-triangle" size={22} color="rgba(255,255,255,0.8)" />
+  Shield: () => (
+    <Feather name="shield" size={22} color="rgba(255,255,255,0.8)" />
   ),
-  MapPin: () => (
-    <Feather name="map-pin" size={22} color="rgba(255,255,255,0.8)" />
-  ),
-  BarChart3: () => (
-    <Feather name="bar-chart-2" size={22} color="rgba(255,255,255,0.8)" />
-  ),
-  RotateCcw: () => (
-    <Feather name="rotate-ccw" size={22} color="rgba(255,255,255,0.8)" />
+  Activity: () => (
+    <Feather name="activity" size={22} color="rgba(255,255,255,0.8)" />
   ),
   ChevronRight: () => (
     <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
   ),
   User: () => <Feather name="user" size={14} color="#8ab4d9" />,
-  Building2: () => <FontAwesome5 name="building" size={14} color="#8ab4d9" />,
   Clock: () => <Feather name="clock" size={14} color="#8ab4d9" />,
   Calendar: () => <Feather name="calendar" size={14} color="#8ab4d9" />,
-  Shield: () => (
-    <Feather name="shield" size={22} color="rgba(255,255,255,0.8)" />
-  ),
-  Undo2: () => (
-    <Feather name="corner-up-left" size={22} color="rgba(255,255,255,0.8)" />
-  ),
-  RefreshCw: () => (
-    <Feather name="refresh-cw" size={22} color="rgba(255,255,255,0.8)" />
-  ),
+  LogOut: () => <Feather name="log-out" size={22} color="#fff" />,
 };
 
-// ✅ ADDED: Proper interface for stat cards
-interface StatCard {
+interface AdminCard {
   title: string;
   value: number | string;
-  subtitle?: string;
   icon: () => React.ReactNode;
   color: string;
   route: string;
 }
 
-export default function DashboardScreen() {
+export default function AdminDashboardScreen() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({
-    applications_in_queue: 0,
-    applications_forwarded: 0,
-    inspections_completed: 0,
-    prosecution_initiated: 0,
-    compliance_data: 0,
-    prosecution_request_count: 0,
-    inspection_close_request_count: 0,
-    pull_back_count: 0,
-    re_initiate_inspection_count: 0,
+    total_users: 0,
+    total_offices: 0,
+    total_applications: 0,
+    pending_approvals: 0,
+    inspections_today: 0,
+    reports_generated: 0,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,36 +105,52 @@ export default function DashboardScreen() {
   const loadDashboard = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem("token");
+      const userStr = await AsyncStorage.getItem("user");
+
       if (!token) {
         router.replace("/login");
         return;
       }
 
-      const response = await API.get("/dashboard", {
+      // Verify user is admin
+      if (userStr) {
+        const parsedUser = JSON.parse(userStr);
+        if (parsedUser.role_id !== 1) {
+          Alert.alert("Access Denied", "You do not have admin privileges.");
+          router.replace("/dashboard");
+          return;
+        }
+        setUser(parsedUser);
+      }
+
+      const response = await API.get("/admin/dashboard", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.data.success) {
-        const data = response.data.data;
-        setUser(data.user);
+        const data = response.data.data || {};
         setStats({
-          applications_in_queue: data.applications_in_queue || 0,
-          applications_forwarded: data.applications_forwarded || 0,
-          inspections_completed: data.inspections_completed || 0,
-          prosecution_initiated: data.prosecution_initiated || 0,
-          compliance_data: data.compliance_data || 0,
-          prosecution_request_count: data.prosecution_request_count || 0,
-          inspection_close_request_count: data.inspection_close_request_count || 0,
-          pull_back_count: data.pull_back_count || 0,
-          re_initiate_inspection_count: data.re_initiate_inspection_count || 0,
+          total_users: data.total_users || 0,
+          total_offices: data.total_offices || 0,
+          total_applications: data.total_applications || 0,
+          pending_approvals: data.pending_approvals || 0,
+          inspections_today: data.inspections_today || 0,
+          reports_generated: data.reports_generated || 0,
         });
       }
     } catch (error: any) {
-      console.log("API Error:", error?.response?.status, error?.response?.data);
+      console.log("Admin API Error:", error?.response?.status, error?.response?.data);
       const status = error?.response?.status;
-      const message = error?.response?.data?.message || "Failed to load dashboard data";
-      if (status === 404) {
-        Alert.alert("API Error", "Dashboard endpoint not found. Check your API URL.");
+      const message = error?.response?.data?.message || "Failed to load admin dashboard";
+
+      if (status === 403) {
+        Alert.alert("Access Denied", "Admin access only.");
+        router.replace("/dashboard");
+      } else if (status === 401) {
+        Alert.alert("Session Expired", "Please login again.");
+        await AsyncStorage.removeItem("token");
+        await AsyncStorage.removeItem("user");
+        router.replace("/login");
       } else {
         Alert.alert("Error", message);
       }
@@ -188,26 +186,19 @@ export default function DashboardScreen() {
     return date.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   };
 
-  const getStatCards = (): StatCard[] => {
-    const allCards: StatCard[] = [
-      { title: "APPLICATIONS IN QUEUE", value: stats.applications_in_queue, icon: Icons.FileText, color: "#4A90D9", route: "/applications" },
-      { title: "APPLICATIONS FORWARDED", value: stats.applications_forwarded, icon: Icons.Send, color: "#7B68EE", route: "/applications/forwarded" },
-      {
-        title: "TRACK APPLICATIONS",
-        value: "",
-        subtitle: "Search • Track • History",
-        icon: Icons.MapPin,
-        color: "#2563EB",
-        route: "/track",
-      },
+  const getAdminCards = (): AdminCard[] => {
+    const allCards: AdminCard[] = [
+      { title: "TOTAL USERS", value: stats.total_users, icon: Icons.Users, color: "#4A90D9", route: "/admin/users" },
+      { title: "TOTAL OFFICES", value: stats.total_offices, icon: Icons.Shield, color: "#7B68EE", route: "/admin/offices" },
+      { title: "ALL APPLICATIONS", value: stats.total_applications, icon: Icons.FileText, color: "#2563EB", route: "/admin/applications" },
+      { title: "PENDING APPROVALS", value: stats.pending_approvals, icon: Icons.Activity, color: "#E74C3C", route: "/admin/approvals" },
+      { title: "INSPECTIONS TODAY", value: stats.inspections_today, icon: Icons.BarChart, color: "#27AE60", route: "/admin/inspections" },
+      { title: "REPORTS", value: stats.reports_generated, icon: Icons.FileText, color: "#F39C12", route: "/admin/reports" },
     ];
 
     return allCards.filter((card) => {
-      if (card.route === "/track") {
-        return true;
-      }
-      // ✅ FIXED: Type-safe comparison
-      return typeof card.value === 'number' && card.value > 0;
+      if (card.route === "/admin/reports") return true;
+      return typeof card.value === "number" && card.value >= 0;
     });
   };
 
@@ -215,12 +206,13 @@ export default function DashboardScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.centered]} edges={["left", "right", "bottom"]}>
         <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
-        <Text style={styles.loadingText}>Loading Dashboard...</Text>
+        <ActivityIndicator size="large" color="#1a1a4e" />
+        <Text style={styles.loadingText}>Loading Admin Dashboard...</Text>
       </SafeAreaView>
     );
   }
 
-  const statCards = getStatCards();
+  const adminCards = getAdminCards();
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
@@ -234,19 +226,22 @@ export default function DashboardScreen() {
         }
       >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {/* Welcome Section */}
+          {/* Admin Welcome Section */}
           <View style={styles.welcomeSection}>
             <View style={styles.welcomeLeft}>
+              <View style={styles.adminBadge}>
+                <Icons.Shield />
+                <Text style={styles.adminBadgeText}>ADMINISTRATOR</Text>
+              </View>
               <Text style={styles.welcomeTitle}>
                 Welcome, {user?.firstname} {user?.lastname}
               </Text>
               <View style={styles.roleRow}>
                 <Icons.User />
-                <Text style={styles.roleText}>Role: {user?.role_name || "Unknown"}</Text>
+                <Text style={styles.roleText}>Role: {user?.role_name || "Administrator"}</Text>
               </View>
               <View style={styles.roleRow}>
-                <Icons.Building2 />
-                <Text style={styles.roleText}>Office: {user?.office_name || "Unknown"}</Text>
+                <Text style={styles.roleText}>System Management Console</Text>
               </View>
             </View>
             <View style={styles.timeSection}>
@@ -264,31 +259,27 @@ export default function DashboardScreen() {
           {/* Section Title */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIcon} />
-            <Text style={styles.sectionTitle}>DASHBOARD OVERVIEW</Text>
+            <Text style={styles.sectionTitle}>ADMIN OVERVIEW</Text>
           </View>
 
-          {/* Stats Grid */}
-          {statCards.length > 0 ? (
+          {/* Admin Stats Grid */}
+          {adminCards.length > 0 ? (
             <View style={styles.statsGrid}>
-              {statCards.map((card, index) => (
+              {adminCards.map((card, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[styles.statCard, { backgroundColor: card.color }]}
-                 onPress={() => router.push(card.route as any)}  // ✅ FIXED: Cast to Href<string>
+                  onPress={() => router.push(card.route as Href)}
                   activeOpacity={0.9}
                 >
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
                     <card.icon />
                   </View>
-                  {card.value ? (
-                    <Text style={styles.cardValue}>{card.value}</Text>
-                  ) : (
-                    <View style={{ height: 36 }} />
-                  )}
+                  <Text style={styles.cardValue}>{card.value}</Text>
                   <View style={styles.cardDivider} />
                   <View style={styles.cardFooter}>
-                    <Text style={styles.cardLink}>View Details</Text>
+                    <Text style={styles.cardLink}>Manage</Text>
                     <Icons.ChevronRight />
                   </View>
                 </TouchableOpacity>
@@ -297,23 +288,59 @@ export default function DashboardScreen() {
           ) : (
             <View style={styles.emptyState}>
               <Feather name="inbox" size={48} color="#ccc" />
-              <Text style={styles.emptyTitle}>No Active Items</Text>
-              <Text style={styles.emptySubtitle}>All caught up! Nothing pending.</Text>
+              <Text style={styles.emptyTitle}>No Data Available</Text>
+              <Text style={styles.emptySubtitle}>Admin statistics will appear here.</Text>
             </View>
           )}
+
+          {/* Quick Actions */}
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIcon} />
+            <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
+          </View>
+
+          <View style={styles.actionGrid}>
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: "#4A90D9" }]}
+              onPress={() => router.push("/admin/users" as Href)}
+              activeOpacity={0.9}
+            >
+              <Icons.Users />
+              <Text style={styles.actionText}>Manage Users</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: "#27AE60" }]}
+              onPress={() => router.push("/admin/reports" as Href)}
+              activeOpacity={0.9}
+            >
+              <Icons.BarChart />
+              <Text style={styles.actionText}>View Reports</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: "#E74C3C" }]}
+              onPress={() => setLogoutModalVisible(true)}
+              activeOpacity={0.9}
+            >
+              <Icons.LogOut />
+              <Text style={styles.actionText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              © 2026. Website all rights, reserved & belongs to Labour Welfare Department, Govt. of Assam, India.
+              © 2026. Labour Welfare Department, Govt. of Assam, India.
             </Text>
             <Text style={styles.footerSubText}>
-              Designed & Developed by: National Informatics Centre, Assam
+              Admin Portal | National Informatics Centre, Assam
             </Text>
           </View>
         </Animated.View>
       </ScrollView>
 
+      {/* Logout Modal */}
       <RNModal
         transparent
         visible={logoutModalVisible}
@@ -325,10 +352,16 @@ export default function DashboardScreen() {
             <Text style={styles.modalTitle}>Logout</Text>
             <Text style={styles.modalMessage}>Are you sure you want to logout?</Text>
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setLogoutModalVisible(false)}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setLogoutModalVisible(false)}
+              >
                 <Text style={styles.cancelButtonText}>No</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.logoutButton]} onPress={logout}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.logoutButton]}
+                onPress={logout}
+              >
                 <Text style={styles.logoutButtonText}>Yes</Text>
               </TouchableOpacity>
             </View>
@@ -352,6 +385,7 @@ const styles = StyleSheet.create({
     color: "#1a1a4e",
     fontSize: 16,
     fontWeight: "600",
+    marginTop: 12,
   },
   scrollView: {
     flex: 1,
@@ -373,6 +407,23 @@ const styles = StyleSheet.create({
   },
   welcomeLeft: {
     flex: 1,
+  },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E74C3C",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 10,
+    gap: 6,
+  },
+  adminBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
   welcomeTitle: {
     fontSize: 22,
@@ -421,7 +472,7 @@ const styles = StyleSheet.create({
   sectionIcon: {
     width: 4,
     height: 18,
-    backgroundColor: "#1a1a4e",
+    backgroundColor: "#E74C3C",
     borderRadius: 2,
   },
   sectionTitle: {
@@ -483,6 +534,33 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.85)",
     fontSize: 12,
     fontWeight: "600",
+  },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 12,
+    gap: 8,
+    marginBottom: 16,
+  },
+  actionCard: {
+    width: CARD_WIDTH,
+    margin: 4,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 100,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 8,
   },
   emptyState: {
     alignItems: "center",

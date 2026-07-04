@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import AppHeader from "../components/AppHeader";
 import {
-    SafeAreaView,
-    View,
-    Text,
-    FlatList,
     ActivityIndicator,
+    FlatList,
+    SafeAreaView,
     StyleSheet,
+    Text,
+    View,
 } from "react-native";
+import AppHeader from "../components/AppHeader";
 
-import { useLocalSearchParams, router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { TouchableOpacity } from "react-native";
 import StatusBadge from "../components/track/StatusBadge";
 

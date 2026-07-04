@@ -12,6 +12,7 @@
 // }
 
 import { Stack } from "expo-router";
+import "react-native-get-random-values";
 import { NotificationProvider } from "../context/NotificationContext";
 
 export default function RootLayout() {
@@ -23,8 +24,8 @@ export default function RootLayout() {
         <Stack.Screen name="otp" />
         <Stack.Screen name="dashboard" />
         
-        <Stack.Screen name="track/index" />
-        <Stack.Screen name="history/[applRefNo]" />
+        <Stack.Screen name="track" />
+        <Stack.Screen name="track-history" />
         <Stack.Screen name="notifications/index" />
       </Stack>
     </NotificationProvider>

@@ -17,7 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { API } from "../services/api";
 
 export default function OtpScreen() {
-  const { username } = useLocalSearchParams();
+  const { username, fullname, phone, role } = useLocalSearchParams();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
@@ -29,7 +29,6 @@ export default function OtpScreen() {
     newOtp[index] = text;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (text && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -58,14 +57,20 @@ export default function OtpScreen() {
       if (response.data.success) {
         await AsyncStorage.setItem("token", response.data.token);
         await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
-        router.replace("/dashboard");
+
+        // Role-based routing
+        const userRole = response.data.user?.role_id;
+        if (userRole === 1) {
+          router.replace("/admin-dashboard");
+        } else {
+          router.replace("/dashboard");
+        }
       }
     } catch (error: any) {
       Alert.alert(
         "Verification Failed",
         error?.response?.data?.message || "Invalid OTP. Please try again.",
       );
-      // Reset OTP on failure
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -80,24 +85,24 @@ export default function OtpScreen() {
         style={styles.container}
       >
         <View style={styles.content}>
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <Text style={styles.icon}>🔐</Text>
             </View>
             <Text style={styles.title}>Verify OTP</Text>
             <Text style={styles.subtitle}>
-              Enter the 6-digit code sent to{"\n"}
-              <Text style={styles.username}>{username}</Text>
+              Hi <Text style={styles.highlight}>{fullname || username}</Text>,{"\n"}
+              We have sent a One Time Password (OTP) to your registered{"\n"}
+              mobile number ending with{" "}
+              <Text style={styles.highlight}>{phone || "****"}</Text>.
             </Text>
           </View>
 
-          {/* OTP Inputs */}
           <View style={styles.otpContainer}>
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
+                ref={(ref) => { inputRefs.current[index] = ref; }}  // <-- FIXED: braces instead of parentheses
                 style={[
                   styles.otpInput,
                   digit ? styles.otpInputFilled : null,
@@ -116,7 +121,6 @@ export default function OtpScreen() {
             ))}
           </View>
 
-          {/* Verify Button */}
           <TouchableOpacity
             style={[
               styles.button,
@@ -133,7 +137,6 @@ export default function OtpScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Resend Option */}
           <TouchableOpacity style={styles.resendButton}>
             <Text style={styles.resendText}>
               Didn't receive code? <Text style={styles.resendLink}>Resend</Text>
@@ -188,7 +191,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
-  username: {
+  highlight: {
     color: "#2563EB",
     fontWeight: "600",
   },

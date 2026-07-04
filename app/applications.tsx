@@ -176,7 +176,7 @@ export default function ApplicationsScreen() {
         style={[styles.container, styles.center]}
         edges={[ "left", "right"]}
       >
-        <AppHeader />
+
         <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
         <ActivityIndicator size="large" color="#1a1a4e" />
         <Text style={styles.loadingText}>Loading Applications...</Text>

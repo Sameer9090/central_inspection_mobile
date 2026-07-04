@@ -16,6 +16,7 @@ import AppHeader from "../components/AppHeader";
 
 import ASEForm from "../components/inspection/ASEForm";
 import CommonForm from "../components/inspection/CommonForm";
+import ContractLabourForm from "../components/inspection/ContractLabourForm";
 
 import { API } from "../services/api";
 import { getCurrentLocation, GPSLocation } from "../utils/location";
@@ -50,11 +51,6 @@ export default function InspectionFormScreen() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log("=== BACKEND RESPONSE ===");
-      console.log("current_step:", response.data.common?.current_step);
-      console.log("sections_status:", JSON.stringify(response.data.common?.sections_status));
-      console.log("selected_types:", JSON.stringify(response.data.common?.selected_types));
-
       setApplication(response.data.application);
       setCommon(response.data.common);
 
@@ -78,11 +74,6 @@ export default function InspectionFormScreen() {
         const step = response.data.common.current_step || "common";
         const status = response.data.common.sections_status || {};
         const types = response.data.common.selected_types || [];
-
-        console.log("=== SETTING STATE ===");
-        console.log("Setting currentStep to:", step);
-        console.log("Setting sectionsStatus to:", JSON.stringify(status));
-        console.log("Setting selectedTypes to:", JSON.stringify(types));
 
         setCurrentStep(step);
         setSectionsStatus(status);
@@ -132,8 +123,6 @@ export default function InspectionFormScreen() {
 
       if (response.data.status) {
         Alert.alert("Success", "Common data saved with GPS location.");
-        console.log("=== SAVE RESPONSE ===");
-        console.log("next_step:", response.data.next_step);
         setCurrentStep(response.data.next_step || "ase");
         await loadApplication();
       } else {
@@ -172,15 +161,19 @@ export default function InspectionFormScreen() {
     }
   };
 
-  // ✅ FIXED: Proper switch with no fallthrough
-  const renderCurrentForm = () => {
-    console.log("=== RENDERING FORM ===");
-    console.log("currentStep:", currentStep);
-    console.log("sectionsStatus:", JSON.stringify(sectionsStatus));
+  // ✅ FIXED: Navigate back to previous step
+  const handleBack = () => {
+    const stepOrder = ["common", ...selectedTypes, "preview"];
+    const currentIndex = stepOrder.indexOf(currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(stepOrder[currentIndex - 1]);
+    }
+  };
 
+  // ✅ FIXED: Correct component mapping for each step
+  const renderCurrentForm = () => {
     switch (currentStep) {
       case "common":
-        console.log("Rendering: CommonForm");
         return (
           <CommonForm
             application={application}
@@ -193,26 +186,28 @@ export default function InspectionFormScreen() {
           />
         );
       case "ase":
-        console.log("Rendering: ASEForm");
         return (
           <ASEForm
             inspectionASE={inspectionASE}
             user={user}
             onSave={(data) => handleSectionSave("ase", data)}
+            onBack={handleBack}
             currentStep={currentStep}
             sectionsStatus={sectionsStatus}
           />
         );
       case "contract":
-        console.log("Rendering: ContractForm (not implemented)");
         return (
-          <View style={styles.notImplemented}>
-            <Text style={styles.notImplementedText}>Contract Labour Form</Text>
-            <Text style={styles.notImplementedSubtext}>Coming soon...</Text>
-          </View>
+          <ContractLabourForm
+            inspectionContract={inspectionContract}
+            user={user}
+            onSave={(data) => handleSectionSave("contract", data)}
+            onBack={handleBack}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+          />
         );
       case "minimumwage":
-        console.log("Rendering: MinimumWageForm (not implemented)");
         return (
           <View style={styles.notImplemented}>
             <Text style={styles.notImplementedText}>Minimum Wage Form</Text>
@@ -220,10 +215,8 @@ export default function InspectionFormScreen() {
           </View>
         );
       case "preview":
-        console.log("Rendering: PreviewForm");
         return <PreviewForm application={application} common={common} />;
       default:
-        console.log("Rendering: Default (CommonForm), unknown step:", currentStep);
         return (
           <CommonForm
             application={application}
@@ -251,9 +244,9 @@ export default function InspectionFormScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, styles.center]} edges={[ "left", "right","bottom"]}>
+      <SafeAreaView style={[styles.container, styles.center]} edges={["left", "right", "bottom"]}>
         <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
-        <AppHeader />
+
         <ActivityIndicator size="large" color="#1a1a4e" />
         <Text style={styles.loadingText}>Loading...</Text>
       </SafeAreaView>
@@ -264,7 +257,7 @@ export default function InspectionFormScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }} edges={["left", "right", "bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
       <AppHeader />
-      
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Step Progress Indicator */}
         <StepProgressIndicator
@@ -305,7 +298,7 @@ export default function InspectionFormScreen() {
           <Text style={styles.value}>{`${user?.firstname} ${user?.lastname}`}</Text>
         </View>
 
-        {/* ✅ Only show the CURRENT step form */}
+        {/* Current step form */}
         {renderCurrentForm()}
 
       </ScrollView>
@@ -468,7 +461,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  // Not implemented placeholder
   notImplemented: {
     backgroundColor: "#fff",
     padding: 40,
@@ -486,7 +478,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
   },
-  // Progress indicator styles
   progressContainer: {
     backgroundColor: "#fff",
     padding: 16,
@@ -570,7 +561,6 @@ const styles = StyleSheet.create({
   stepLineCompleted: {
     backgroundColor: "#2ECC71",
   },
-  // Preview styles
   previewContainer: {
     backgroundColor: "#fff",
     padding: 20,
