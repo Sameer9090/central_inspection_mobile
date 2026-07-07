@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { API, BASE_URL } from "@/services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Picker } from "@react-native-picker/picker";
+import * as ImagePicker from "expo-image-picker";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   StyleSheet,
   Switch,
@@ -28,7 +33,79 @@ export default function CommonForm({
   sectionsStatus?: Record<string, boolean>;
 }) {
   const commonData = common?.common_data || {};
+  const [emplSignPath, setEmplSignPath] = useState(
+    common?.common_data?.files?.empl_sign || "",
+  );
+  const [emplSignPreview, setEmplSignPreview] = useState("");
+  const [photoPath, setPhotoPath] = useState(
+    common?.common_data?.files?.est_photo || "",
+  );
+  const [photoPreview, setPhotoPreview] = useState("");
+  const loadEmployerSignature = async () => {
+    if (!emplSignPath) return;
 
+    // New upload (still in public/temp)
+    if (emplSignPath.startsWith("temp/")) {
+      setEmplSignPreview(`${BASE_URL}/storage/${emplSignPath}`);
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      const res = await API.get("/private-file-base64", {
+        params: { path: emplSignPath },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setEmplSignPreview(
+        `data:${res.data.mime};base64,${res.data.base64}`
+      );
+    } catch (e) {
+      console.log("Employer signature load failed");
+    }
+  };
+
+  const loadEstablishmentPhoto = async () => {
+    if (!photoPath) return;
+
+    // New upload (still in public/temp)
+    if (photoPath.startsWith("temp/")) {
+      setPhotoPreview(`${BASE_URL}/storage/${photoPath}`);
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      const res = await API.get("/private-file-base64", {
+        params: { path: photoPath },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setPhotoPreview(
+        `data:${res.data.mime};base64,${res.data.base64}`
+      );
+    } catch (e) {
+      console.log("Establishment photo load failed");
+    }
+  };
+
+  useEffect(() => {
+
+
+    if (photoPath) {
+      loadEstablishmentPhoto();
+    }
+
+    if (emplSignPath) {
+      loadEmployerSignature();
+    }
+  }, [photoPath, emplSignPath]);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [apiError, setApiError] = useState<string>("");
@@ -82,21 +159,26 @@ export default function CommonForm({
 
   const [dateOfInspection, setDateOfInspection] = useState(
     common?.common_data?.inspector?.date ||
-      new Date().toISOString().split("T")[0],
+    new Date().toISOString().split("T")[0],
   );
   const [panchayat, setPanchayat] = useState(
     common?.common_data?.establishment?.panchayat || "",
   );
   const [submissionLocation, setSubmissionLocation] = useState(
     common?.common_data?.submission_location ||
-      application?.submission_location ||
-      "",
+    application?.submission_location ||
+    "",
   );
 
-  const [photoPath] = useState(common?.common_data?.files?.est_photo || "");
-  const [emplSignPath] = useState(common?.common_data?.files?.empl_sign || "");
+  // ─── UPDATED: Mutable photo / sign states with previews ───
+
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+
+  const [uploadingSign, setUploadingSign] = useState(false);
+
   const [inspectorSignPath] = useState(
-    common?.common_data?.files?.inspector_sign || "",
+    common?.common_data?.files?.inspector_sign || user?.signature || "",
   );
 
   const [gpsStatus, setGpsStatus] = useState<"idle" | "waiting" | "success" | "failed">("idle");
@@ -110,6 +192,86 @@ export default function CommonForm({
   const hasFieldError = (fieldName: string): boolean => {
     return !!errors[fieldName]?.length;
   };
+
+  // ─── NEW: Upload to Laravel temp endpoint using API service ───
+  const uploadToTemp = async (uri: string): Promise<string> => {
+    const formData = new FormData();
+
+    formData.append("file", {
+      uri: uri,
+      type: "image/jpeg",
+      name: "upload.jpg",
+    } as any);
+    const token = await AsyncStorage.getItem("token");
+
+    const res = await API.post("/upload/temp", formData, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log("Upload API Response:", res.data);
+    return res.data.data.path; // e.g. "temp/1234567890_abc_1234.jpg"
+  };
+
+  // ─── NEW: Expo image picker + upload handler ───
+  const handlePickImage = async (
+    setPath: (p: string) => void,
+    setPreview: (uri: string) => void,
+    setUploading: (v: boolean) => void,
+    fieldName: string
+  ) => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        setApiError("Permission to access media library is required.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images", // ← FIXED: use string instead of enum
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+
+      setUploading(true);
+      setPreview(asset.uri); // show local image immediately
+
+      // Upload to Laravel temp folder
+      const serverPath = await uploadToTemp(asset.uri);
+      console.log(serverPath);
+
+      setPath(serverPath);
+
+      // Clear field error if any
+      if (errors[fieldName]) {
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next[fieldName];
+          return next;
+        });
+      }
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      setApiError("Image upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Helper to show existing private file or local preview
+  // const getFilePreviewUrl = (path: string) => {
+  //   return `${API.defaults.baseURL}/private-file?path=${encodeURIComponent(path)}`;
+  // };
+
 
   const handleSave = async () => {
     setSaving(true);
@@ -154,19 +316,31 @@ export default function CommonForm({
     } catch (error: any) {
       setGpsStatus("failed");
 
-      // Handle validation errors from backend
-      if (error?.response?.data?.errors) {
-        setErrors(error.response.data.errors);
+      if (error?.response?.status === 422) {
+        setErrors(error.response.data.errors || {});
+
+        Alert.alert(
+          "Validation Error",
+          error.response.data.message
+        );
+
+        return;
       }
-      if (error?.response?.data?.message) {
-        setApiError(error.response.data.message);
-      }
+
+      setApiError(
+        error?.response?.data?.message || "Something went wrong."
+      );
+
+      Alert.alert(
+        "Error",
+        error?.response?.data?.message || "Something went wrong."
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const isBusy = saving || gpsAcquiring;
+  const isBusy = saving || gpsAcquiring || uploadingPhoto || uploadingSign;
 
   return (
     <View style={styles.container}>
@@ -323,15 +497,72 @@ export default function CommonForm({
         <Text style={styles.fieldError}>{getFieldError("est_landmark")}</Text>
       ) : null}
 
-      <Text style={styles.label}>District <Text style={styles.required}>*</Text></Text>
-      <TextInput
-        style={[styles.input, hasFieldError("est_district") && styles.inputError]}
-        value={district}
-        onChangeText={setDistrict}
-        placeholder="Enter district"
-      />
+      <Text style={styles.label}>
+        District <Text style={styles.required}>*</Text>
+      </Text>
+
+      <View
+        style={[
+          styles.input,
+          hasFieldError("est_district") && styles.inputError,
+          { padding: 0 },
+        ]}
+      >
+        <Picker
+          selectedValue={district}
+          onValueChange={(value) => {
+            setDistrict(value);
+
+            if (value === "Kamrup Metropolitan") {
+              setPanchayat("");
+            } else {
+              setWardNo("");
+            }
+          }}
+        >
+          <Picker.Item label="Select District" value="" />
+          <Picker.Item label="Baksa" value="Baksa" />
+          <Picker.Item label="Barpeta" value="Barpeta" />
+          <Picker.Item label="Biswanath" value="Biswanath" />
+          <Picker.Item label="Bongaigaon" value="Bongaigaon" />
+          <Picker.Item label="Cachar" value="Cachar" />
+          <Picker.Item label="Charaideo" value="Charaideo" />
+          <Picker.Item label="Chirang" value="Chirang" />
+          <Picker.Item label="Darrang" value="Darrang" />
+          <Picker.Item label="Dhemaji" value="Dhemaji" />
+          <Picker.Item label="Dhubri" value="Dhubri" />
+          <Picker.Item label="Dibrugarh" value="Dibrugarh" />
+          <Picker.Item label="Dima Hasao" value="Dima Hasao" />
+          <Picker.Item label="Goalpara" value="Goalpara" />
+          <Picker.Item label="Golaghat" value="Golaghat" />
+          <Picker.Item label="Hailakandi" value="Hailakandi" />
+          <Picker.Item label="Hojai" value="Hojai" />
+          <Picker.Item label="Jorhat" value="Jorhat" />
+          <Picker.Item label="Kamrup" value="Kamrup" />
+          <Picker.Item label="Kamrup Metropolitan" value="Kamrup Metropolitan" />
+          <Picker.Item label="Karbi Anglong" value="Karbi Anglong" />
+          <Picker.Item label="Karimganj" value="Karimganj" />
+          <Picker.Item label="Kokrajhar" value="Kokrajhar" />
+          <Picker.Item label="Lakhimpur" value="Lakhimpur" />
+          <Picker.Item label="Majuli" value="Majuli" />
+          <Picker.Item label="Morigaon" value="Morigaon" />
+          <Picker.Item label="Nagaon" value="Nagaon" />
+          <Picker.Item label="Nalbari" value="Nalbari" />
+          <Picker.Item label="Sivasagar" value="Sivasagar" />
+          <Picker.Item label="Sonitpur" value="Sonitpur" />
+          <Picker.Item label="South Salmara-Mankachar" value="South Salmara-Mankachar" />
+          <Picker.Item label="Tamulpur" value="Tamulpur" />
+          <Picker.Item label="Tinsukia" value="Tinsukia" />
+          <Picker.Item label="Udalguri" value="Udalguri" />
+          <Picker.Item label="West Karbi Anglong" value="West Karbi Anglong" />
+          {/* Add the remaining districts here */}
+        </Picker>
+      </View>
+
       {getFieldError("est_district") ? (
-        <Text style={styles.fieldError}>{getFieldError("est_district")}</Text>
+        <Text style={styles.fieldError}>
+          {getFieldError("est_district")}
+        </Text>
       ) : null}
 
       {district === "Kamrup Metropolitan" ? (
@@ -420,21 +651,91 @@ export default function CommonForm({
         </>
       )}
 
-      <Text style={styles.label}>Establishment Photo <Text style={styles.required}>*</Text></Text>
-      <TouchableOpacity style={[styles.uploadBox, hasFieldError("inspection_photo_path") && styles.inputError]}>
-        <Text style={photoPath ? styles.uploadBoxTextSelected : styles.uploadBoxText}>
-          {photoPath ? "✓ Photo Selected" : "Select Establishment Photo"}
-        </Text>
+      {/* ─── Establishment Photo (with upload) ─── */}
+      <Text style={styles.label}>
+        Establishment Photo <Text style={styles.required}>*</Text>
+      </Text>
+      <TouchableOpacity
+        style={[
+          styles.uploadBox,
+          photoPath ? styles.uploadBoxHasImage : null,
+          hasFieldError("inspection_photo_path") && styles.inputError,
+        ]}
+        onPress={() =>
+          handlePickImage(
+            setPhotoPath,
+            setPhotoPreview,
+            setUploadingPhoto,
+            "inspection_photo_path"
+          )
+        }
+        activeOpacity={0.7}
+        disabled={uploadingPhoto}
+      >
+        {uploadingPhoto ? (
+          <ActivityIndicator size="small" color="#1976D2" />
+        ) : photoPreview ? (
+          <Image
+            source={{ uri: photoPreview }}
+            style={styles.uploadPreview}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={styles.uploadBoxText}>📷 Select Establishment Photo</Text>
+        )}
+
+        {(photoPreview || photoPath) && !uploadingPhoto && (
+          <View style={styles.retakeOverlay}>
+            <Text style={styles.retakeText}>Tap to change</Text>
+          </View>
+        )}
       </TouchableOpacity>
       {getFieldError("inspection_photo_path") ? (
-        <Text style={styles.fieldError}>{getFieldError("inspection_photo_path")}</Text>
+        <Text style={styles.fieldError}>
+          {getFieldError("inspection_photo_path")}
+        </Text>
       ) : null}
 
-      <Text style={styles.label}>Employer Signature <Text style={styles.required}>*</Text></Text>
-      <TouchableOpacity style={[styles.uploadBox, hasFieldError("empl_sign_path") && styles.inputError]}>
-        <Text style={emplSignPath ? styles.uploadBoxTextSelected : styles.uploadBoxText}>
-          {emplSignPath ? "✓ Signature Selected" : "Select Employer Signature"}
-        </Text>
+      {/* ─── Employer Signature (with upload) ─── */}
+      <Text style={styles.label}>
+        Employer Signature <Text style={styles.required}>*</Text>
+      </Text>
+      <TouchableOpacity
+        style={[
+          styles.uploadBox,
+          emplSignPath ? styles.uploadBoxHasImage : null,
+          hasFieldError("empl_sign_path") && styles.inputError,
+        ]}
+        onPress={() =>
+          handlePickImage(
+            setEmplSignPath,
+            setEmplSignPreview,
+            setUploadingSign,
+            "empl_sign_path"
+          )
+        }
+        activeOpacity={0.7}
+        disabled={uploadingSign}
+      >
+        {uploadingSign ? (
+          <ActivityIndicator size="small" color="#1976D2" />
+        ) : emplSignPreview ? (
+          <Image
+            source={{ uri: emplSignPreview }}
+            style={styles.uploadPreview}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={styles.uploadBoxText}>
+            ✍️ Select Employer Signature
+          </Text>
+        )}
+
+        {emplSignPreview && !uploadingSign && (
+          <View style={styles.retakeOverlay}>
+            <Text style={styles.retakeText}>Tap to change</Text>
+          </View>
+        )}
       </TouchableOpacity>
       {getFieldError("empl_sign_path") ? (
         <Text style={styles.fieldError}>{getFieldError("empl_sign_path")}</Text>
@@ -453,7 +754,9 @@ export default function CommonForm({
         {isBusy ? (
           <View style={styles.buttonContent}>
             <ActivityIndicator color="#fff" size="small" />
-            <Text style={styles.saveText}>Getting GPS...</Text>
+            <Text style={styles.saveText}>
+              {uploadingPhoto || uploadingSign ? "Uploading..." : "Getting GPS..."}
+            </Text>
           </View>
         ) : gpsStatus === "failed" && !Object.keys(errors).length ? (
           <Text style={styles.saveText}>Retry with GPS</Text>
@@ -596,6 +899,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fafafa",
   },
+  uploadBoxHasImage: {
+    borderStyle: "solid",
+    borderColor: "#1976D2",
+    backgroundColor: "#fff",
+    padding: 0,
+    overflow: "hidden",
+  },
   uploadBoxText: {
     color: "#666",
     fontSize: 14,
@@ -604,6 +914,25 @@ const styles = StyleSheet.create({
     color: "#2E7D32",
     fontWeight: "600",
     fontSize: 14,
+  },
+  uploadPreview: {
+    width: "100%",
+    height: 180,
+    borderRadius: 8,
+  },
+  retakeOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  retakeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   saveButton: {
     backgroundColor: "#1976D2",

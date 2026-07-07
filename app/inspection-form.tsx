@@ -131,8 +131,15 @@ export default function InspectionFormScreen() {
       return response.data;
     } catch (error: any) {
       setGpsAcquiring(false);
-      console.error("Save error:", error?.response?.data || error);
-      Alert.alert("Error", "Failed to save common form.");
+
+      if (error.response?.status !== 422) {
+        console.error(error);
+        Alert.alert(
+          "Error",
+          error.response?.data?.message || "Something went wrong."
+        );
+      }
+
       throw error;
     }
   };
@@ -140,7 +147,7 @@ export default function InspectionFormScreen() {
   const handleSectionSave = async (sectionType: string, formData: any) => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const response = await API.post("/save-section", {
+      const response = await API.post("/section/save", {
         ...formData,
         reference_number: refNo,
         inspection_type: sectionType,

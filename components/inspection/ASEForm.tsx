@@ -1,7 +1,11 @@
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as DocumentPicker from 'expo-document-picker';
 import React, { useState } from "react";
 import {
+  Alert,
   FlatList,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -181,12 +185,16 @@ const TextInputField = ({
   placeholder,
   multiline = false,
   numberOfLines = 1,
+  keyboardType = "default",
+  maxLength,
 }: {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
   multiline?: boolean;
   numberOfLines?: number;
+  keyboardType?: "default" | "numeric" | "email-address" | "phone-pad";
+  maxLength?: number;
 }) => (
   <TextInput
     style={[styles.textInput, multiline && styles.textArea]}
@@ -196,6 +204,8 @@ const TextInputField = ({
     placeholderTextColor="#999"
     multiline={multiline}
     numberOfLines={numberOfLines}
+    keyboardType={keyboardType}
+    maxLength={maxLength}
   />
 );
 
@@ -273,16 +283,17 @@ export default function ASEForm({
   user,
   onSave,
   onBack,
-   currentStep,
+  currentStep,
   sectionsStatus,
-
+  referenceNumber,
 }: {
   inspectionASE: any;
   user: any;
   onSave?: (data: any) => void;
   onBack?: () => void;
-   currentStep?: string;
+  currentStep?: string;
   sectionsStatus?: Record<string, boolean>;
+  referenceNumber?: string;
 }) {
   // ===== SECTION 1: Workplace Safety and Health Measures =====
   const [cleanlinessWorkplace, setCleanlinessWorkplace] = useState(
@@ -349,6 +360,7 @@ export default function ASEForm({
         address: "",
         age: "",
         age_proof: null,
+        age_proof_name: "",
         hazardous_work: "",
         working_hours: "",
         maintain_register: "",
@@ -366,6 +378,7 @@ export default function ASEForm({
         address: "",
         age: "",
         age_proof: null,
+        age_proof_name: "",
         hazardous_work: "",
         working_hours: "",
         maintain_register: "",
@@ -386,6 +399,27 @@ export default function ASEForm({
     setAdolescentDetails(updated);
   };
 
+  const pickAgeProofDocument = async (index: number) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled === false) {
+        const file = result.assets[0];
+        updateAdolescent(index, 'age_proof', {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType,
+          size: file.size,
+        });
+        updateAdolescent(index, 'age_proof_name', file.name);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to pick document');
+    }
+  };
   // ===== SECTION 4: Establishment / Employer Details =====
   const [nameAddressOfEmployer, setNameAddressOfEmployer] = useState(
     inspectionASE?.name_address_of_employer || "",
@@ -399,6 +433,7 @@ export default function ASEForm({
   const [dateOfCommencement, setDateOfCommencement] = useState(
     inspectionASE?.date_of_commencement || "",
   );
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [openingClosingHours, setOpeningClosingHours] = useState(
     inspectionASE?.opening_and_closing_hours || "",
   );
@@ -412,6 +447,16 @@ export default function ASEForm({
   );
   const [whetherCertificateDisplayed, setWhetherCertificateDisplayed] =
     useState(inspectionASE?.whether_certificate_displayed || "");
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate) {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(selectedDate.getDate()).padStart(2, "0");
+      setDateOfCommencement(`${year}-${month}-${day}`);
+    }
+  };
 
   // ===== SECTION 5: Permanent Workers =====
   const [permanentWorkers, setPermanentWorkers] = useState({
@@ -519,6 +564,15 @@ export default function ASEForm({
       newErrors.establishment_name = "This field is required";
     if (!contactNumberEmail.trim())
       newErrors.contact_number_email = "This field is required";
+    else {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const mobilePattern = /^\d{10}$/;
+      const hasEmail = emailPattern.test(contactNumberEmail);
+      const hasMobile = mobilePattern.test(contactNumberEmail.replace(/\D/g, ""));
+      if (!hasEmail && !hasMobile) {
+        newErrors.contact_number_email = "Please enter a valid email or 10-digit mobile number";
+      }
+    }
     if (!openingClosingHours.trim())
       newErrors.opening_and_closing_hours = "This field is required";
     if (!certificateRegistrationDate)
@@ -563,6 +617,10 @@ export default function ASEForm({
     }
 
     const formData = {
+      // Meta fields for API
+      reference_number: referenceNumber || "",
+      inspection_type: "ase",
+
       // Safety measures
       cleanliness_workplace_ase: cleanlinessWorkplace ? "Yes" : "No",
       adequate_lighting_ase: adequateLighting ? "Yes" : "No",
@@ -783,6 +841,7 @@ export default function ASEForm({
               value={esicNoOfEmpl}
               onChangeText={setEsicNoOfEmpl}
               placeholder="Enter number of employees"
+              keyboardType="numeric"
             />
           )}
         </View>
@@ -883,8 +942,13 @@ export default function ASEForm({
 
                 <View style={styles.formGroup}>
                   <Label required>e. Age proof (Upload document)</Label>
-                  <TouchableOpacity style={styles.uploadBtn}>
-                    <Text style={styles.uploadBtnText}>Choose File</Text>
+                  <TouchableOpacity
+                    style={styles.uploadBtn}
+                    onPress={() => pickAgeProofDocument(index)}
+                  >
+                    <Text style={styles.uploadBtnText}>
+                      {adolescent.age_proof_name || "Choose File"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -953,6 +1017,7 @@ export default function ASEForm({
             value={nameAddressOfEmployer}
             onChangeText={setNameAddressOfEmployer}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.name_address_of_employer && (
             <ErrorText>{errors.name_address_of_employer}</ErrorText>
@@ -965,6 +1030,7 @@ export default function ASEForm({
             value={establishmentName}
             onChangeText={setEstablishmentName}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.establishment_name && (
             <ErrorText>{errors.establishment_name}</ErrorText>
@@ -977,6 +1043,7 @@ export default function ASEForm({
             value={contactNumberEmail}
             onChangeText={setContactNumberEmail}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.contact_number_email && (
             <ErrorText>{errors.contact_number_email}</ErrorText>
@@ -985,11 +1052,24 @@ export default function ASEForm({
 
         <View style={styles.formGroup}>
           <Label>Date of Commencement of business</Label>
-          <TextInputField
-            value={dateOfCommencement}
-            onChangeText={setDateOfCommencement}
-            placeholder="YYYY-MM-DD"
-          />
+          <TouchableOpacity
+            style={styles.datePickerButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={dateOfCommencement ? styles.dateText : styles.datePlaceholder}>
+              {dateOfCommencement || "Select Date"}
+            </Text>
+            <Text style={styles.calendarIcon}>📅</Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={dateOfCommencement ? new Date(dateOfCommencement) : new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onDateChange}
+              maximumDate={new Date()}
+            />
+          )}
         </View>
 
         <View style={styles.formGroup}>
@@ -998,6 +1078,7 @@ export default function ASEForm({
             value={openingClosingHours}
             onChangeText={setOpeningClosingHours}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.opening_and_closing_hours && (
             <ErrorText>{errors.opening_and_closing_hours}</ErrorText>
@@ -1026,6 +1107,7 @@ export default function ASEForm({
             value={registrationNumber}
             onChangeText={setRegistrationNumber}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.registration_number && (
             <ErrorText>{errors.registration_number}</ErrorText>
@@ -1057,6 +1139,7 @@ export default function ASEForm({
             value={whetherCertificateDisplayed}
             onChangeText={setWhetherCertificateDisplayed}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.whether_certificate_displayed && (
             <ErrorText>{errors.whether_certificate_displayed}</ErrorText>
@@ -1159,6 +1242,7 @@ export default function ASEForm({
             value={whetherWeeklyHolidaysProvided}
             onChangeText={setWhetherWeeklyHolidaysProvided}
             placeholder="Enter Details"
+            maxLength={255}
           />
           {errors.whether_weekly_holidays_provided && (
             <ErrorText>{errors.whether_weekly_holidays_provided}</ErrorText>
@@ -1244,7 +1328,7 @@ export default function ASEForm({
         </View>
 
         {/* Directions */}
-        <SectionTitle>Directions</SectionTitle>
+        <SectionTitle>Directions <Text style={styles.required}>*</Text></SectionTitle>
         {directions.map((direction, index) => (
           <View key={index} style={styles.directionRow}>
             <View style={{ flex: 1 }}>
@@ -1672,5 +1756,28 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
     fontSize: 15,
+  },
+  datePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#fafafa",
+    marginTop: 6,
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  datePlaceholder: {
+    fontSize: 14,
+    color: "#999",
+  },
+  calendarIcon: {
+    fontSize: 16,
   },
 });

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
-    Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,8 +16,8 @@ import AppHeader from "../../components/AppHeader";
 
 import {
     getNotifications,
-    markNotificationRead,
     markAllNotificationsRead,
+    markNotificationRead,
 } from "../../services/notificationService";
 
 import { Notification } from "../../types/notification";

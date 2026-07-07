@@ -1,3 +1,4 @@
+import * as DocumentPicker from "expo-document-picker";
 import React, { useState } from "react";
 import {
   Alert,
@@ -12,7 +13,10 @@ import {
   View,
 } from "react-native";
 
-// Reusable components
+// ============================================
+// REUSABLE COMPONENTS
+// ============================================
+
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <Text style={styles.sectionTitle}>{children}</Text>
 );
@@ -150,12 +154,14 @@ const TextInputField = ({
   placeholder,
   multiline = false,
   numberOfLines = 1,
+  maxLength,
 }: {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
   multiline?: boolean;
   numberOfLines?: number;
+  maxLength?: number;
 }) => (
   <TextInput
     style={[styles.textInput, multiline && styles.textArea]}
@@ -165,8 +171,13 @@ const TextInputField = ({
     placeholderTextColor="#999"
     multiline={multiline}
     numberOfLines={numberOfLines}
+    maxLength={maxLength}
   />
 );
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function ContractLabourForm({
   inspectionContract,
@@ -175,6 +186,7 @@ export default function ContractLabourForm({
   onBack,
   currentStep,
   sectionsStatus,
+  referenceNumber,
 }: {
   inspectionContract: any;
   user: any;
@@ -182,6 +194,7 @@ export default function ContractLabourForm({
   onBack?: () => void;
   currentStep?: string;
   sectionsStatus?: Record<string, boolean>;
+  referenceNumber?: string;
 }) {
   // ===== SECTION 1: Workplace Safety and Health Measures =====
   const [cleanlinessWorkplace, setCleanlinessWorkplace] = useState(
@@ -235,6 +248,7 @@ export default function ContractLabourForm({
         address: "",
         age: "",
         age_proof: null,
+        age_proof_name: "",
         hazardous_work: "",
         working_hours: "",
         maintain_register: "",
@@ -252,6 +266,7 @@ export default function ContractLabourForm({
         address: "",
         age: "",
         age_proof: null,
+        age_proof_name: "",
         hazardous_work: "",
         working_hours: "",
         maintain_register: "",
@@ -270,6 +285,28 @@ export default function ContractLabourForm({
     const updated = [...adolescentDetails];
     updated[index] = { ...updated[index], [field]: value };
     setAdolescentDetails(updated);
+  };
+
+  const pickAgeProofDocument = async (index: number) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled === false) {
+        const file = result.assets[0];
+        updateAdolescent(index, "age_proof", {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType,
+          size: file.size,
+        });
+        updateAdolescent(index, "age_proof_name", file.name);
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to pick document");
+    }
   };
 
   // ===== SECTION 4: Contract Labour Provisions Table =====
@@ -444,6 +481,10 @@ export default function ContractLabourForm({
     }
 
     const formData = {
+      // Meta fields for API
+      reference_number: referenceNumber || "",
+      inspection_type: "contract",
+
       // Safety measures
       cleanliness_workplace_contract: cleanlinessWorkplace ? "Yes" : "No",
       adequate_lighting_contract: adequateLighting ? "Yes" : "No",
@@ -499,6 +540,10 @@ export default function ContractLabourForm({
   };
 
   const yesNoOptions = ["Yes", "No"];
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <ScrollView style={styles.scrollView}>
@@ -601,6 +646,7 @@ export default function ContractLabourForm({
               value={esicNoOfEmpl}
               onChangeText={setEsicNoOfEmpl}
               placeholder="Enter number of employees"
+              maxLength={255}
             />
           )}
         </View>
@@ -675,6 +721,7 @@ export default function ContractLabourForm({
                     value={adolescent.name}
                     onChangeText={(val) => updateAdolescent(index, "name", val)}
                     placeholder="Enter name"
+                    maxLength={255}
                   />
                 </View>
 
@@ -686,6 +733,7 @@ export default function ContractLabourForm({
                       updateAdolescent(index, "address", val)
                     }
                     placeholder="Enter address"
+                    maxLength={255}
                   />
                 </View>
 
@@ -700,8 +748,13 @@ export default function ContractLabourForm({
 
                 <View style={styles.formGroup}>
                   <Label required>e. Age proof (Upload document)</Label>
-                  <TouchableOpacity style={styles.uploadBtn}>
-                    <Text style={styles.uploadBtnText}>Choose File</Text>
+                  <TouchableOpacity
+                    style={styles.uploadBtn}
+                    onPress={() => pickAgeProofDocument(index)}
+                  >
+                    <Text style={styles.uploadBtnText}>
+                      {adolescent.age_proof_name || "Choose File"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -726,6 +779,7 @@ export default function ContractLabourForm({
                       updateAdolescent(index, "working_hours", val)
                     }
                     placeholder="Enter working hours"
+                    maxLength={255}
                   />
                 </View>
 
@@ -1014,6 +1068,7 @@ export default function ContractLabourForm({
                 value={direction}
                 onChangeText={(val) => updateDirection(index, val)}
                 placeholder="Enter Direction"
+                maxLength={255}
               />
             </View>
             {index === 0 ? (
@@ -1043,6 +1098,7 @@ export default function ContractLabourForm({
             placeholder="Enter Remarks"
             multiline
             numberOfLines={3}
+            maxLength={255}
           />
           {errors.additional_remarks2 && (
             <ErrorText>{errors.additional_remarks2}</ErrorText>
@@ -1062,6 +1118,10 @@ export default function ContractLabourForm({
     </ScrollView>
   );
 }
+
+// ============================================
+// STYLES
+// ============================================
 
 const styles = StyleSheet.create({
   scrollView: {
