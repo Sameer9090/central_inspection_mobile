@@ -98,20 +98,20 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       console.log("========== API ERROR ==========");
-    console.log("Message:", error.message);
-    console.log("Status:", error.response?.status);
-    console.log("URL:", error.config?.baseURL + error.config?.url);
-    console.log("Request:", error.config?.data);
-    console.log("Response:", error.response?.data);
-    console.log("Headers:", error.config?.headers);
-    console.log("===============================");
+      console.log("Message:", error.message);
+      console.log("Status:", error.response?.status);
+      console.log("URL:", error.config?.baseURL + error.config?.url);
+      console.log("Request:", error.config?.data);
+      console.log("Response:", error.response?.data);
+      console.log("Headers:", error.config?.headers);
+      console.log("===============================");
 
-    Alert.alert(
-      "Login Failed",
-      error.response?.data?.message ||
+      Alert.alert(
+        "Login Failed",
+        error.response?.data?.message ||
         JSON.stringify(error.response?.data) ||
         error.message
-    );
+      );
     } finally {
       setIsLoading(false);
     }
@@ -222,8 +222,19 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.forgotButton}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
+            <TouchableOpacity
+              style={styles.forgotPasswordContainer}
+              onPress={() =>
+                Alert.alert(
+                  "Password Reset",
+                  "Please contact your System Administrator to have your password reset.",
+                  [{ text: "OK" }]
+                )
+              }
+            >
+              <Text style={styles.forgotPassword}>
+                Forgot Password?
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -393,5 +404,9 @@ const styles = StyleSheet.create({
     color: "#5a8fc4",
     fontSize: 11,
     marginTop: 4,
+  },
+  forgotPasswordContainer: {
+    marginTop: 20,
+    alignItems: "center",
   },
 });
