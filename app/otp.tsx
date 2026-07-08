@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useRef, useState } from "react";
+// import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,7 +21,22 @@ export default function OtpScreen() {
   const { username, fullname, phone, role } = useLocalSearchParams();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(30);
+  const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  useEffect(() => {
+    if (countdown <= 0) {
+      setCanResend(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   const handleOtpChange = (text: string, index: number) => {
     if (text.length > 1) return;
@@ -37,6 +53,42 @@ export default function OtpScreen() {
   const handleKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const resendOtp = async () => {
+    if (!canResend) return;
+
+    try {
+      setLoading(true);
+
+      const response = await API.post("/login-otp-resend", {
+        username,
+      });
+
+      if (response.data.success) {
+        Alert.alert(
+          "OTP Sent",
+          "A new OTP has been sent to your registered mobile number."
+        );
+
+        // Clear OTP boxes
+        setOtp(["", "", "", "", "", ""]);
+
+        // Focus first box
+        inputRefs.current[0]?.focus();
+
+        // Restart timer
+        setCanResend(false);
+        setCountdown(30);
+      }
+    } catch (error: any) {
+      Alert.alert(
+        "Failed",
+        error?.response?.data?.message || "Unable to resend OTP."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -137,9 +189,20 @@ export default function OtpScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.resendButton}>
+          <TouchableOpacity
+            style={styles.resendButton}
+            onPress={resendOtp}
+            disabled={!canResend || loading}
+          >
             <Text style={styles.resendText}>
-              Didn't receive code? <Text style={styles.resendLink}>Resend</Text>
+              {canResend ? (
+                <>
+                  Didn't receive the code?{" "}
+                  <Text style={styles.resendLink}>Resend OTP</Text>
+                </>
+              ) : (
+                `Resend OTP in ${countdown}s`
+              )}
             </Text>
           </TouchableOpacity>
         </View>
@@ -259,6 +322,6 @@ const styles = StyleSheet.create({
   },
   resendLink: {
     color: "#2563EB",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });
