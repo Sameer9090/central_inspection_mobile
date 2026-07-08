@@ -394,30 +394,47 @@ export default function ASEForm({
   };
 
   const updateAdolescent = (index: number, field: string, value: any) => {
-    const updated = [...adolescentDetails];
-    updated[index] = { ...updated[index], [field]: value };
-    setAdolescentDetails(updated);
+    setAdolescentDetails(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+      };
+      return updated;
+    });
   };
 
   const pickAgeProofDocument = async (index: number) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
+        type: "*/*",
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled === false) {
+      if (!result.canceled) {
         const file = result.assets[0];
-        updateAdolescent(index, 'age_proof', {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType,
-          size: file.size,
+
+        setAdolescentDetails(prev => {
+          const updated = [...prev];
+
+          updated[index] = {
+            ...updated[index],
+            age_proof: {
+              uri: file.uri,
+              name: file.name,
+              type: file.mimeType || "application/octet-stream",
+              size: file.size,
+            },
+            age_proof_name: file.name,
+          };
+
+          return updated;
         });
-        updateAdolescent(index, 'age_proof_name', file.name);
+
+        console.log("Selected file:", file);
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to pick document');
+      Alert.alert("Error", "Failed to pick document");
     }
   };
   // ===== SECTION 4: Establishment / Employer Details =====

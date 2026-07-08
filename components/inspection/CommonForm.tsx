@@ -522,6 +522,7 @@ export default function CommonForm({
         >
           <Picker.Item label="Select District" value="" />
           <Picker.Item label="Baksa" value="Baksa" />
+          <Picker.Item label="Bajali" value="Bajali" />
           <Picker.Item label="Barpeta" value="Barpeta" />
           <Picker.Item label="Biswanath" value="Biswanath" />
           <Picker.Item label="Bongaigaon" value="Bongaigaon" />

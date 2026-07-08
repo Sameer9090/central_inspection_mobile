@@ -4,7 +4,5 @@ export const API = axios.create({
   baseURL: `${BASE_URL}/api`,
   headers: {
     Accept: "application/json",
-    "Content-Type": "application/json",
   },
 });
-

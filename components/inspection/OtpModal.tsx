@@ -1,258 +1,350 @@
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-export default function OtpModal({ visible, onClose, onVerify, mobileNumber }) {
+interface Props {
+  visible: boolean;
+  mobileNumber: string;
+  onClose: () => void;
+  onVerify: (otp: string) => void;
+  onResend?: () => void;
+  loading?: boolean;
+}
+
+export default function OtpModal({
+  visible,
+  mobileNumber,
+  onClose,
+  onVerify,
+  onResend,
+  loading = false,
+}: Props) {
+  const { username, fullname, phone, role } = useLocalSearchParams();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [timer, setTimer] = useState(180);
+  const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState("");
-  const inputRefs = useRef([]);
+
+  const inputs = useRef<TextInput[]>([]);
 
   useEffect(() => {
-    if (visible) {
-      setOtp(["", "", "", "", "", ""]);
-      setTimer(180);
-      setCanResend(false);
-      setError("");
-    }
+    if (!visible) return;
+
+    setOtp(["", "", "", "", "", ""]);
+    setTimer(60);
+    setCanResend(false);
+    setError("");
+
+    setTimeout(() => {
+      inputs.current[0]?.focus();
+    }, 200);
   }, [visible]);
 
   useEffect(() => {
-    if (timer > 0 && visible) {
-      const interval = setInterval(() => setTimer((t) => t - 1), 1000);
-      return () => clearInterval(interval);
-    } else if (timer === 0) {
+    if (!visible) return;
+
+    if (timer <= 0) {
       setCanResend(true);
-    }
-  }, [timer, visible]);
-
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    setError("");
-
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (index, key) => {
-    if (key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerify = () => {
-    const otpString = otp.join("");
-    if (otpString.length !== 6) {
-      setError("Please enter all 6 digits");
       return;
     }
-    onVerify(otpString);
+
+    const interval = setInterval(() => {
+      setTimer((t) => t - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timer, visible]);
+
+  const handleChange = (text: string, index: number) => {
+    if (text.length > 1) {
+      const digits = text.slice(0, 6).split("");
+      const next = ["", "", "", "", "", ""];
+
+      digits.forEach((d, i) => {
+        next[i] = d;
+      });
+
+      setOtp(next);
+
+      if (digits.length === 6) {
+        onVerify(next.join(""));
+      }
+
+      return;
+    }
+
+    const arr = [...otp];
+    arr[index] = text;
+    setOtp(arr);
+
+    if (text && index < 5) {
+      inputs.current[index + 1]?.focus();
+    }
   };
 
-  const handleResend = () => {
+  const handleBackspace = (index: number) => {
+    if (otp[index] === "" && index > 0) {
+      inputs.current[index - 1]?.focus();
+    }
+  };
+
+  const verify = () => {
+    const code = otp.join("");
+
+    if (code.length !== 6) {
+      setError("Please enter 6 digit OTP");
+      return;
+    }
+
+    setError("");
+    onVerify(code);
+  };
+
+  const resend = () => {
     setOtp(["", "", "", "", "", ""]);
-    setTimer(180);
+    setTimer(60);
     setCanResend(false);
     setError("");
-    // Call API to resend OTP
-    Alert.alert("OTP Sent", "A new OTP has been sent to your mobile");
+
+    inputs.current[0]?.focus();
+
+    onResend?.();
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const maskedMobile = mobileNumber
-    ? `+91******${mobileNumber.slice(-4)}`
-    : "+91******XXXX";
+  const masked =
+    mobileNumber && mobileNumber.length >= 4
+      ? `+91******${mobileNumber.slice(-4)}`
+      : "+91******XXXX";
 
   return (
     <Modal
-      visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
+      visible={visible}
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContent}>
+
+        <View style={styles.modal}>
+
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>🔐 OTP Verification</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>✕</Text>
+
+            <Text style={styles.headerTitle}>
+              🔐 OTP Verification
+            </Text>
+
+            <TouchableOpacity
+              onPress={onClose}
+              disabled={loading}
+            >
+              <Text style={styles.close}>✕</Text>
             </TouchableOpacity>
+
           </View>
 
-          <Text style={styles.description}>
+          <Text style={styles.info}>
             We have sent you One Time Password to your registered Mobile Number
-            ending with {maskedMobile}
           </Text>
 
-          <View style={styles.otpContainer}>
+          <Text style={styles.mobile}>
+            {masked}
+          </Text>
+
+          <View style={styles.otpRow}>
+
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
-                style={styles.otpInput}
+                ref={(ref: any) => (inputs.current[index] = ref)}
                 value={digit}
-                onChangeText={(v) => handleOtpChange(index, v)}
-                onKeyPress={({ nativeEvent }) =>
-                  handleKeyPress(index, nativeEvent.key)
-                }
                 keyboardType="number-pad"
                 maxLength={1}
-                textAlign="center"
-                selectTextOnFocus
+                style={styles.input}
+                onChangeText={(t) => handleChange(t, index)}
+                onKeyPress={({ nativeEvent }) => {
+                  if (nativeEvent.key === "Backspace") {
+                    handleBackspace(index);
+                  }
+                }}
               />
             ))}
+
           </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {!!error && (
+            <Text style={styles.error}>
+              {error}
+            </Text>
+          )}
 
-          <TouchableOpacity style={styles.verifyBtn} onPress={handleVerify}>
-            <Text style={styles.verifyBtnText}>✓ Verify OTP</Text>
-          </TouchableOpacity>
-
-          <View style={styles.timerContainer}>
-            {canResend ? (
-              <TouchableOpacity style={styles.resendBtn} onPress={handleResend}>
-                <Text style={styles.resendBtnText}>🔄 Resend OTP</Text>
-              </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.verifyButton,
+              loading && { opacity: 0.6 },
+            ]}
+            onPress={verify}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.timerText}>
-                Resend OTP in{" "}
-                <Text style={styles.timerHighlight}>{formatTime(timer)}</Text>
+              <Text style={styles.verifyText}>
+                ✓ Verify OTP
               </Text>
             )}
-          </View>
+          </TouchableOpacity>
+
+          {!canResend ? (
+            <Text style={styles.timer}>
+              Resend OTP in{" "}
+              <Text style={styles.green}>
+                {timer}
+              </Text>{" "}
+              sec
+            </Text>
+          ) : (
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={resend}
+            >
+              <Text style={styles.resendText}>
+                🔄 Resend OTP
+              </Text>
+            </TouchableOpacity>
+          )}
+
         </View>
+
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,.45)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
+
+  modal: {
     width: "100%",
-    maxWidth: 400,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    overflow: "hidden",
   },
+
   header: {
+    backgroundColor: "#1976D2",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 12,
+    padding: 16,
   },
+
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1976D2",
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#f5f5f5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeBtnText: {
-    fontSize: 16,
-    color: "#666",
-    fontWeight: "bold",
-  },
-  description: {
-    fontSize: 14,
-    color: "#555",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  otpContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    marginBottom: 20,
-  },
-  otpInput: {
-    width: 48,
-    height: 56,
-    borderWidth: 2,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    backgroundColor: "#fafafa",
-  },
-  errorText: {
-    color: "#d32f2f",
-    textAlign: "center",
-    marginBottom: 12,
-    fontWeight: "600",
-  },
-  verifyBtn: {
-    backgroundColor: "#1976D2",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  verifyBtnText: {
     color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: "700",
   },
-  timerContainer: {
-    alignItems: "center",
+
+  close: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "700",
   },
-  timerText: {
-    fontSize: 14,
-    color: "#666",
+
+  info: {
+    marginTop: 25,
+    textAlign: "center",
+    fontSize: 15,
+    color: "#555",
+    paddingHorizontal: 20,
   },
-  timerHighlight: {
-    color: "#28a745",
-    fontWeight: "bold",
+
+  mobile: {
+    marginTop: 10,
+    textAlign: "center",
+    color: "#2E7D32",
+    fontWeight: "700",
+    fontSize: 18,
   },
-  resendBtn: {
-    padding: 10,
-    borderRadius: 8,
+
+  otpRow: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    marginTop: 30,
+    marginHorizontal: 20,
+  },
+
+  input: {
+    width: 46,
+    height: 56,
     borderWidth: 1,
     borderColor: "#1976D2",
+    borderRadius: 8,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "700",
   },
-  resendBtnText: {
-    color: "#1976D2",
+
+  error: {
+    marginTop: 15,
+    color: "#D32F2F",
+    textAlign: "center",
     fontWeight: "600",
-    fontSize: 14,
   },
+
+  verifyButton: {
+    marginTop: 25,
+    marginHorizontal: 35,
+    backgroundColor: "#1976D2",
+    paddingVertical: 14,
+    borderRadius: 30,
+    alignItems: "center",
+  },
+
+  verifyText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  timer: {
+    marginVertical: 20,
+    textAlign: "center",
+    color: "#555",
+  },
+
+  green: {
+    color: "#2E7D32",
+    fontWeight: "700",
+  },
+
+  resendButton: {
+    alignSelf: "center",
+    marginVertical: 20,
+    borderWidth: 1,
+    borderColor: "#1976D2",
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+
+  resendText: {
+    color: "#1976D2",
+    fontWeight: "700",
+  },
+
 });

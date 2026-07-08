@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
+
 import {
   ActivityIndicator,
   Alert,
@@ -8,22 +9,28 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
+  View
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
 
 import ASEForm from "../components/inspection/ASEForm";
 import CommonForm from "../components/inspection/CommonForm";
 import ContractLabourForm from "../components/inspection/ContractLabourForm";
+import MWForm from "../components/inspection/MWForm";
+import PreviewForm from "../components/inspection/PreviewForm";
 
+
+
+import OtpModal from "@/components/inspection/OtpModal";
 import { API } from "../services/api";
 import { getCurrentLocation, GPSLocation } from "../utils/location";
 
 export default function InspectionFormScreen() {
   const { refNo } = useLocalSearchParams();
-
+  const [otpVisible, setOtpVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [application, setApplication] = useState<any>(null);
   const [common, setCommon] = useState<any>(null);
   const [inspectionASE, setinspectionASE] = useState<any>({});
@@ -147,28 +154,324 @@ export default function InspectionFormScreen() {
   const handleSectionSave = async (sectionType: string, formData: any) => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const response = await API.post("/section/save", {
-        ...formData,
-        reference_number: refNo,
-        inspection_type: sectionType,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
+      console.log("Saving section:", sectionType, "refNo:", refNo);
+      const payload = new FormData();
+      payload.append('reference_number', String(refNo));
+      payload.append('inspection_type', sectionType);
+      console.log(formData);
+
+      // Add all scalar fields, skipping nested arrays
+      Object.entries(formData).forEach(([key, value]) => {
+        if (
+          key === "inspection_type" ||
+          key === "reference_number" ||
+          key === 'adolescent_details_ase' ||
+          key === 'adolescent_details_contract' ||
+          key === 'adolescent_details_minimumwage' ||
+          key === 'workers_detail_mw') {
+          return;
+        }
+
+        if (value === null || value === undefined) return;
+
+        if (Array.isArray(value)) {
+          value.forEach((item) => payload.append(`${key}[]`, String(item)));
+        } else {
+          payload.append(key, String(value));
+        }
+      });
+
+      // Handle adolescent details with EXPLICIT indices
+      const adolescentKey = `adolescent_details_${sectionType}`;
+      const adolescents = formData[adolescentKey] || [];
+
+      adolescents.forEach((ado: any, index: number) => {
+        // Use [index] instead of [] for explicit indexing
+        payload.append(`labour_office_intimation_${sectionType}[${index}]`, ado.labour_office_intimation || '');
+        payload.append(`adolescent_name_${sectionType}[${index}]`, ado.name || '');
+        payload.append(`adolescent_address_${sectionType}[${index}]`, ado.address || '');
+        payload.append(`adolescent_age_${sectionType}[${index}]`, ado.age || '');
+        payload.append(`hazardous_work_${sectionType}[${index}]`, ado.hazardous_work || '');
+        payload.append(`working_hours_${sectionType}[${index}]`, ado.working_hours || '');
+        payload.append(`wage_amount_${sectionType}[${index}]`, ado.wage_amount || '');
+        payload.append(`maintain_register_${sectionType}[${index}]`, ado.maintain_register || '');
+        console.log("Age proof:", ado.age_proof);
+        if (ado.age_proof && ado.age_proof.uri) {
+          payload.append(`age_proof_${sectionType}[${index}]`, {
+            uri: ado.age_proof.uri,
+            name: ado.age_proof.name || `age_proof_${index}.pdf`,
+            type: ado.age_proof.type || 'application/pdf',
+          } as any);
+        }
+      });
+
+      // Handle MW individual workers with EXPLICIT indices
+      if (sectionType === 'minimumwage' && formData.workers_detail_mw) {
+        formData.workers_detail_mw.forEach((worker: any, index: number) => {
+          payload.append(`worker_name_mw[${index}]`, worker.name || '');
+          payload.append(`worker_designation_mw[${index}]`, worker.designation || '');
+          payload.append(`worker_doj_mw[${index}]`, worker.doj || '');
+          payload.append(`worker_wages_mw[${index}]`, worker.wages || '');
+
+          if (worker.payslip && worker.payslip.uri) {
+            payload.append(`worker_payslip[${index}]`, {
+              uri: worker.payslip.uri,
+              name: worker.payslip.name || `payslip_${index}.pdf`,
+              type: worker.payslip.type || 'application/pdf',
+            } as any);
+          }
+        });
+      }
+
+      const response = await API.post("/section/save", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
       if (response.data.status) {
         Alert.alert("Success", `${sectionType.toUpperCase()} saved successfully`);
-        setCurrentStep(response.data.next_step || "preview");
+        setCurrentStep(response.data.data?.next_step || "preview");
         await loadApplication();
       }
       return response.data;
     } catch (error: any) {
       console.error("Save error:", error?.response?.data || error);
-      Alert.alert("Error", `Failed to save ${sectionType}`);
+      Alert.alert("Error", `Failed to save ${sectionType}: ${error?.response?.data?.message || error.message}`);
       throw error;
+    }
+  };
+  const handleFinalSubmit = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      
+      const response = await API.post(
+        "/office/send-otp-inspection",
+        {
+          username: user?.username,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.status) {
+        setOtpVisible(true);
+
+        Alert.alert(
+          "Success",
+          response.data.message
+        );
+      } else {
+        Alert.alert("Error", response.data.message);
+      }
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error?.response?.data?.message || "Unable to send OTP"
+      );
+    }
+  };
+  const handleVerifyOtp = async (otp: string) => {
+
+    try {
+
+      setSubmitting(true);
+
+      const token = await AsyncStorage.getItem("token");
+
+      const response = await API.post(
+        "/office/verify-otp-inspection",
+        {
+          username: user?.username,
+          otp,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.data.status) {
+
+        Alert.alert(
+          "Verification Failed",
+          response.data.msg
+        );
+
+        return;
+      }
+
+      setOtpVisible(false);
+
+      Alert.alert(
+        "Success",
+        "OTP Verified Successfully"
+      );
+
+      // FINAL SUBMIT
+      await submitInspection();
+
+    } catch (e: any) {
+
+      Alert.alert(
+        "Error",
+        e?.response?.data?.msg || "OTP Verification Failed"
+      );
+
+    } finally {
+
+      setSubmitting(false);
+
+    }
+
+  };
+
+  const handleResendOtp = async () => {
+
+    try {
+
+      const token = await AsyncStorage.getItem("token");
+
+      const response = await API.post(
+        "/office/resend-otp-sms",
+        {
+          username: user?.username,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+
+        Alert.alert(
+          "Success",
+          response.data.message
+        );
+
+      } else {
+
+        Alert.alert(
+          "Error",
+          response.data.message
+        );
+
+      }
+
+    } catch (e: any) {
+
+      Alert.alert(
+        "Error",
+        "Unable to resend OTP."
+      );
+
+    }
+
+  };
+
+  const submitInspection = async () => {
+    try {
+      setSubmitting(true);
+
+      const token = await AsyncStorage.getItem("token");
+
+      const payload = {
+        application_ref_no: application.appl_ref_no,
+
+        name_of_inspector: common.common_data.inspector.name,
+        date_of_inspection: common.common_data.inspector.date,
+
+        empl_first_name: common.common_data.employer.first_name,
+        empl_last_name: common.common_data.employer.last_name,
+        empl_mobile_no: common.common_data.employer.mobile,
+        empl_alt_mobile_no: common.common_data.employer.alt_mobile,
+        empl_email: common.common_data.employer.email,
+
+        est_address_1: common.common_data.establishment.address_1,
+        est_address_2: common.common_data.establishment.address_2,
+        est_landmark: common.common_data.establishment.landmark,
+
+        est_district: common.common_data.establishment.district,
+        est_ward_no: common.common_data.establishment.ward_no,
+        panchayat: common.common_data.establishment.panchayat,
+
+        submission_location: common.common_data.submission_location,
+
+        inspection_photo_path:
+          common.common_data.files.est_photo,
+
+        empl_sign_path:
+          common.common_data.files.empl_sign,
+
+        inspector_sign_path:
+          common.common_data.files.inspector_sign,
+
+        form_selector: selectedTypes,
+
+        ubin: application.ubin,
+
+        name_of_the_establishment:
+          application.name_of_the_establishment,
+      };
+
+      const response = await API.post(
+        "/inspection-submit",
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.status) {
+
+        setOtpVisible(false);
+
+        Alert.alert(
+          "Success",
+          response.data.message
+        );
+
+        await loadApplication();
+
+        // router.replace("/dashboard");
+
+      } else {
+
+        Alert.alert(
+          "Error",
+          response.data.message
+        );
+
+      }
+
+    } catch (e: any) {
+
+      console.log(e.response?.data);
+
+      Alert.alert(
+        "Error",
+        e.response?.data?.message ||
+        "Submission failed."
+      );
+
+    } finally {
+
+      setSubmitting(false);
+
     }
   };
 
   // ✅ FIXED: Navigate back to previous step
+
   const handleBack = () => {
     const stepOrder = ["common", ...selectedTypes, "preview"];
     const currentIndex = stepOrder.indexOf(currentStep);
@@ -216,13 +519,29 @@ export default function InspectionFormScreen() {
         );
       case "minimumwage":
         return (
-          <View style={styles.notImplemented}>
-            <Text style={styles.notImplementedText}>Minimum Wage Form</Text>
-            <Text style={styles.notImplementedSubtext}>Coming soon...</Text>
-          </View>
+          <MWForm
+            inspectionMW={inspectionMW}
+            user={user}
+            onSave={(data) => handleSectionSave("minimumwage", data)}
+            onBack={handleBack}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+            referenceNumber={String(refNo)}
+          />
         );
       case "preview":
-        return <PreviewForm application={application} common={common} />;
+        return (
+          <PreviewForm
+            application={application}
+            common={common}
+            inspectionASE={inspectionASE}
+            inspectionContract={inspectionContract}
+            inspectionMW={inspectionMW}
+            selectedTypes={selectedTypes}
+            onEdit={(step: string) => setCurrentStep(step)}
+            onSubmit={handleFinalSubmit}
+          />
+        );
       default:
         return (
           <CommonForm
@@ -309,6 +628,14 @@ export default function InspectionFormScreen() {
         {renderCurrentForm()}
 
       </ScrollView>
+      <OtpModal
+        visible={otpVisible}
+        mobileNumber={user?.phone}
+        loading={submitting}
+        onClose={() => setOtpVisible(false)}
+        onVerify={handleVerifyOtp}
+        onResend={handleResendOtp}
+      />
     </SafeAreaView>
   );
 }
@@ -390,21 +717,6 @@ function StepProgressIndicator({
           );
         })}
       </View>
-    </View>
-  );
-}
-
-// Preview Form Component (for final step)
-function PreviewForm({ application, common }: { application: any; common: any }) {
-  return (
-    <View style={styles.previewContainer}>
-      <Text style={styles.previewTitle}>Review & Submit</Text>
-      <Text style={styles.previewText}>
-        All sections completed. Review your inspection data before final submission.
-      </Text>
-      <TouchableOpacity style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>Submit Inspection</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -599,3 +911,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
