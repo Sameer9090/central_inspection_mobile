@@ -1,5 +1,6 @@
 import React from "react";
 import {
+    ActivityIndicator,
     ScrollView,
     StyleSheet,
     Text,
@@ -9,7 +10,7 @@ import {
 import InspectionTable from "./InspectionTable";
 
 export default function PreviewForm({
-     application,
+    application,
     common,
     inspectionASE,
     inspectionContract,
@@ -17,6 +18,7 @@ export default function PreviewForm({
     selectedTypes,
     onEdit,
     onSubmit,
+    loading,
 }: any) {
 
 
@@ -27,31 +29,23 @@ export default function PreviewForm({
     const establishment = common?.common_data?.establishment || {};
 
     return (
+
         <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={previewStyles.container}
             showsVerticalScrollIndicator={false}
         >
-            <Text style={previewStyles.govt}>
-                GOVERNMENT OF ASSAM
-            </Text>
+
 
             <Text style={previewStyles.title}>
                 Labour Inspection Report
             </Text>
 
             <View style={previewStyles.card}>
+
                 <Row
-                    label="Reference Number"
-                    value={application?.appl_ref_no}
-                />
-                <Row
-                    label="UBIN"
-                    value={application?.ubin}
-                />
-                <Row
-                    label="Inspection Types"
-                    value={selectedTypes.join(", ")}
+                    label="Selected Inspection Typs"
+                    value={selectedTypes.join(", ").toUpperCase()}
                 />
             </View>
 
@@ -112,15 +106,23 @@ export default function PreviewForm({
             )}
 
             <TouchableOpacity
-                style={previewStyles.submitButton}
+                style={[
+                    previewStyles.submitButton,
+                    loading && { opacity: 0.7 },
+                ]}
                 onPress={onSubmit}
+                disabled={loading}
             >
-                <Text style={previewStyles.submitText}>
-                    Submit Inspection
-                </Text>
+                {loading ? (
+                    <ActivityIndicator color="#fff" />
+                ) : (
+                    <Text style={previewStyles.submitText}>
+                        Submit Inspection
+                    </Text>
+                )}
             </TouchableOpacity>
         </ScrollView>
-        
+
     );
 }
 
@@ -154,23 +156,189 @@ function Row({ label, value, valueColor }: any) {
 
 // ─── ASE Preview ───────────────────────────────────────────────
 function ASEPreview({ data, onEdit }: any) {
-    const rows = [
-        { label: "Issue of appointment letters", value: data?.issue_of_appointment_letters_ase },
-        { label: "Issue of identity cards", value: data?.issue_of_identity_card_ase },
-        { label: "Issue of payslips", value: data?.issue_of_payslip_ase },
-        { label: "Applicability of ESIC", value: data?.applicable_of_ESIC_ase },
-        { label: "Maintenance of Registers", value: data?.maintenance_of_registers_ase },
-        { label: "Annual Return Submitted", value: data?.whether_annual_rep_submitted_ase },
-        { label: "Adolescent Employed", value: data?.is_adolescent_employed_ase },
+    // ── Establishment / Employer Details ──
+    const establishmentRows = [
+        { label: "Name and address of Employer / Proprietor / Managing Director / Partner / Manager / Contractor", value: data?.name_address_of_employer },
+        { label: "Name and Address of the Establishment", value: data?.establishment_name },
+        { label: "Contact Number and e-mail", value: data?.contact_number_email },
+        { label: "Date of Commencement of business", value: data?.date_of_commencement },
+        { label: "Opening and closing hours (under Sec-34)", value: data?.opening_and_closing_hours },
+        { label: "Certificate of Registration and Date of Registration (Obtained / Not obtained)", value: data?.certificate_registration_date },
+        { label: "Registration Number", value: data?.registration_number },
+        { label: "Certificate of Renewal of Registration under Sec-7 (Obtained / Not obtained)", value: data?.certificate_renewal_obtained },
+        { label: "Whether Registration / Renewal Certificate displayed or not (under Sec-6)", value: data?.whether_certificate_displayed },
     ];
+
+    // ── Workplace Safety and Health Measures ──
+    const safetyRows = [
+        { label: "Ensuring proper cleanliness in the workplace", value: data?.cleanliness_workplace_ase },
+        { label: "Providing adequate lighting in all work areas", value: data?.adequate_lighting_ase },
+        { label: "Maintaining proper ventilation to ensure a healthy working environment", value: data?.proper_ventilation_ase },
+        { label: "Taking necessary measures for prevention of fire, including safety arrangements and emergency preparedness", value: data?.fire_prevention_measures_ase },
+        { label: "Taking all necessary preventive measures to avoid accidents at the workplace", value: data?.accident_prevention_ase },
+        { label: "Drinking Water (Section 18)", value: data?.drinking_water_ase },
+        { label: "Latrine & Urinal (Section 19)", value: data?.latrine_urinal_ase },
+        { label: "First Aid (Section 19)", value: data?.first_aid_ase },
+        { label: "Creche Facility (Section 20)", value: data?.creche_facility_ase },
+        { label: "Canteen (Section 22)", value: data?.canteen_ase },
+    ];
+
+    // ── Inspection Findings ──
+    const findingsRows = [
+        { label: "Issue of appointment letters (Section 16)", value: data?.issue_of_appointment_letters_ase },
+        { label: "Issue of identity cards (Section 16)", value: data?.issue_of_identity_card_ase },
+        { label: "Issue of payslips", value: data?.issue_of_payslip_ase },
+        { label: "Applicability of ESIC to the establishment as per the Employees' State Insurance Act, 1948", value: data?.applicable_of_ESIC_ase },
+        { label: "Number of employees covered under ESIC", value: data?.ESIC_ase_no_of_empl },
+        { label: "Maintenance of registers against each employee (Section 25)", value: data?.maintenance_of_registers_ase },
+        { label: "Whether annual return is submitted or not? (Section 26)", value: data?.whether_annual_rep_submitted_ase },
+        { label: "Has any adolescent been employed?", value: data?.is_adolescent_employed_ase },
+    ];
+
+    // ── Adolescent Worker Details ──
+    const adolescents = data?.adolescent_details_ase || [];
+
+    // ── Directions ──
+    const directions = data?.ase_directions || [];
 
     return (
         <View style={previewStyles.card}>
-            <Text style={previewStyles.sectionTitle}>ASE Inspection</Text>
-            <InspectionTable rows={rows} />
+            <Text style={previewStyles.sectionTitle}>ASE Inspection Report</Text>
+
+            {/* Establishment / Employer Details */}
+            <Text style={previewStyles.subSectionTitle}>Establishment / Employer Details</Text>
+            <InspectionTable rows={establishmentRows} />
+
+            {/* Workplace Safety and Health Measures */}
+            <Text style={previewStyles.subSectionTitle}>Workplace Safety and Health Measures</Text>
+            <InspectionTable rows={safetyRows} />
+
+            {/* Inspection Findings */}
+            <Text style={previewStyles.subSectionTitle}>Inspection Findings</Text>
+            <InspectionTable rows={findingsRows} />
+
+            {/* Adolescent Worker Details */}
+            {adolescents.length > 0 && (
+                <>
+                    <Text style={previewStyles.subSectionTitle}>Adolescent Worker Details</Text>
+                    {adolescents.map((ado: any, idx: number) => (
+                        <View key={idx} style={previewStyles.nestedCard}>
+                            <Row label="Whether intimation has been provided to the concerned Labour Office" value={ado.labour_office_intimation} />
+                            <Row label="Name of the adolescent" value={ado.name} />
+                            <Row label="Address of the adolescent" value={ado.address} />
+                            <Row label="Age of the adolescent" value={ado.age} />
+                            <Row
+                                label="Age proof (Upload document)"
+                                value={ado.age_proof_name || (ado.age_proof ? "Uploaded" : "-")}
+                            />
+                            <Row label="Whether engaged in hazardous occupations" value={ado.hazardous_work} />
+                            <Row label="Working hours" value={ado.working_hours} />
+                            <Row label="Whether maintains register or not" value={ado.maintain_register} />
+                            <Row label="Wage paid to the adolescent" value={ado.wage_amount} />
+                        </View>
+                    ))}
+                </>
+            )}
+
+            {/* Permanent Workers */}
+            <Text style={previewStyles.subSectionTitle}>Number of workers employed (Permanent / Regular Workers)</Text>
+            {renderWorkerTable(data, "permanent")}
+
+            {/* Temporary/Casual Workers */}
+            <Text style={previewStyles.subSectionTitle}>Number of workers employed (Temporary/Casual worker)</Text>
+            {renderWorkerTable(data, "temporary", true)}
+
+            {/* Contract Labour */}
+            <Text style={previewStyles.subSectionTitle}>Number of workers employed (Contract labour)</Text>
+            {renderWorkerTable(data, "contract")}
+
+            {/* Rate of wages paid */}
+            <Text style={previewStyles.subSectionTitle}>Rate of wages paid</Text>
+            {renderWorkerTable(data, "wages_paid")}
+
+            {/* Wages & Work */}
+            <Text style={previewStyles.subSectionTitle}>Wages & Work</Text>
+            <InspectionTable rows={[
+                { label: "Whether the notified wages have been paid (Yes/No)", value: data?.whether_notified_wages_paid },
+                { label: "Hours of Work in a day of the workers (under Sec-13)", value: data?.hours_of_work_a_day },
+                { label: "Working hours of female employees under Sec 11(2)", value: data?.working_hours_of_female },
+                { label: "Whether weekly holidays provided to employees under Sec-15(2)", value: data?.whether_weekly_holidays_provided },
+            ]} />
+
+            {/* Prescribed Registers */}
+            <Text style={previewStyles.subSectionTitle}>Whether prescribed registers are maintained under Sec-25</Text>
+            <InspectionTable rows={[
+                { label: "Whether prescribed registers are maintained under Sec-25", value: data?.wheather_prescribed_reg_maintained },
+                { label: "(a) Register of hours of work and interval of rest", value: data?.register_of_hours_of_work },
+                { label: "(b) Register of overtime", value: data?.register_of_overtime },
+                { label: "(c) Register of employment", value: data?.register_of_employment },
+                { label: "(d) Register of Leave", value: data?.register_of_leave },
+            ]} />
+
+            {/* Violations */}
+            <Text style={previewStyles.subSectionTitle}>Any other violation of the provisions of the Act noticed</Text>
+            <InspectionTable rows={[
+                { label: "Any other violation of the provisions of the Act noticed", value: data?.violation_of_provisions },
+            ]} />
+
+            {/* Directions */}
+            {directions.length > 0 && (
+                <>
+                    <Text style={previewStyles.subSectionTitle}>Directions</Text>
+                    {directions.map((dir: string, idx: number) => (
+                        <Text key={idx} style={previewStyles.bulletItem}>• {dir}</Text>
+                    ))}
+                </>
+            )}
+
+            {/* Remarks */}
+            <Text style={previewStyles.subSectionTitle}>Remarks</Text>
+            <Text style={previewStyles.remarksText}>{data?.additional_remarks || "-"}</Text>
+
             <TouchableOpacity style={previewStyles.editButton} onPress={onEdit}>
                 <Text style={previewStyles.editText}>✏ Edit ASE</Text>
             </TouchableOpacity>
+        </View>
+    );
+}
+
+// Helper to render worker/wage tables
+function renderWorkerTable(data: any, prefix: string, showApprentice = false) {
+    const categories = [
+        { key: "unskilled", label: "Unskilled" },
+        { key: "semiskilled", label: "Semi-Skilled" },
+        { key: "skilled", label: "Skilled" },
+    ];
+
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={previewStyles.tableRow}>
+                <Text style={[previewStyles.tableCell, previewStyles.tableCellHeader, { flex: 2 }]}>Category</Text>
+                <Text style={[previewStyles.tableCell, previewStyles.tableCellHeader]}>Male</Text>
+                <Text style={[previewStyles.tableCell, previewStyles.tableCellHeader]}>Female</Text>
+            </View>
+            {categories.map((cat) => (
+                <View key={cat.key} style={previewStyles.tableRow}>
+                    <Text style={[previewStyles.tableCell, { flex: 2 }]}>{cat.label}</Text>
+                    <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>
+                        {data?.[`${prefix}_${cat.key}_male`] || "-"}
+                    </Text>
+                    <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>
+                        {data?.[`${prefix}_${cat.key}_female`] || "-"}
+                    </Text>
+                </View>
+            ))}
+            {showApprentice && (
+                <View style={previewStyles.tableRow}>
+                    <Text style={[previewStyles.tableCell, { flex: 2 }]}>Apprentice</Text>
+                    <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>
+                        {data?.[`${prefix}_apprentice_male`] || "-"}
+                    </Text>
+                    <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>
+                        {data?.[`${prefix}_apprentice_female`] || "-"}
+                    </Text>
+                </View>
+            )}
         </View>
     );
 }
@@ -593,7 +761,7 @@ const previewStyles = StyleSheet.create({
         fontWeight: "700",
     },
     submitButton: {
-        backgroundColor: "#27AE60",
+        backgroundColor: "#1f928c",
         padding: 16,
         borderRadius: 8,
         marginTop: 15,

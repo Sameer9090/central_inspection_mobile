@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 
 import {
@@ -28,6 +28,8 @@ import { API } from "../services/api";
 import { getCurrentLocation, GPSLocation } from "../utils/location";
 
 export default function InspectionFormScreen() {
+  const [submittingInspection, setSubmittingInspection] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const { refNo } = useLocalSearchParams();
   const [otpVisible, setOtpVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -244,8 +246,9 @@ export default function InspectionFormScreen() {
   };
   const handleFinalSubmit = async () => {
     try {
+      setSendingOtp(true);
       const token = await AsyncStorage.getItem("token");
-      
+
       const response = await API.post(
         "/office/send-otp-inspection",
         {
@@ -260,15 +263,17 @@ export default function InspectionFormScreen() {
 
       if (response.data.status) {
         setOtpVisible(true);
-
-        Alert.alert(
-          "Success",
-          response.data.message
-        );
+        setSendingOtp(false);
+        // Alert.alert(
+        //   "Success",
+        //   response.data.message
+        // );
       } else {
+        setSendingOtp(false);
         Alert.alert("Error", response.data.message);
       }
     } catch (error: any) {
+      setSendingOtp(false);
       Alert.alert(
         "Error",
         error?.response?.data?.message || "Unable to send OTP"
@@ -338,7 +343,7 @@ export default function InspectionFormScreen() {
       const token = await AsyncStorage.getItem("token");
 
       const response = await API.post(
-        "/office/resend-otp-sms",
+        "/office/resend-otp-sms-report",
         {
           username: user?.username,
         },
@@ -378,8 +383,8 @@ export default function InspectionFormScreen() {
 
   const submitInspection = async () => {
     try {
-      setSubmitting(true);
 
+      setSubmittingInspection(true);
       const token = await AsyncStorage.getItem("token");
 
       const payload = {
@@ -435,14 +440,29 @@ export default function InspectionFormScreen() {
 
         setOtpVisible(false);
 
+        let redirected = false;
+
+        const navigateToDashboard = () => {
+          if (redirected) return;
+
+          redirected = true;
+          router.replace("/dashboard");
+        };
+
         Alert.alert(
           "Success",
-          response.data.message
+          response.data.message,
+          [
+            {
+              text: "OK",
+              onPress: navigateToDashboard,
+            },
+          ]
         );
 
-        await loadApplication();
-
-        // router.replace("/dashboard");
+        setTimeout(() => {
+          navigateToDashboard();
+        }, 500);
 
       } else {
 
@@ -465,7 +485,7 @@ export default function InspectionFormScreen() {
 
     } finally {
 
-      setSubmitting(false);
+
 
     }
   };
@@ -540,6 +560,7 @@ export default function InspectionFormScreen() {
             selectedTypes={selectedTypes}
             onEdit={(step: string) => setCurrentStep(step)}
             onSubmit={handleFinalSubmit}
+            loading={sendingOtp}
           />
         );
       default:
@@ -578,7 +599,16 @@ export default function InspectionFormScreen() {
       </SafeAreaView>
     );
   }
-
+  if (submittingInspection) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#1976D2" />
+        <Text style={styles.loadingText}>
+          Submitting inspection...
+        </Text>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }} edges={["left", "right", "bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
