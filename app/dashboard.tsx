@@ -2,6 +2,8 @@ import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import { registerForPushNotifications } from "../services/pushNotificationService";
 import {
   Alert,
   Animated,
@@ -102,6 +104,20 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  useEffect(() => {
+
+    async function test() {
+
+        const token = await registerForPushNotifications();
+
+        console.log("FINAL TOKEN:", token);
+
+    }
+
+    test();
+
+}, []);
 
   useEffect(() => {
     if (!loading) {
@@ -274,7 +290,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={index}
                   style={[styles.statCard, { backgroundColor: card.color }]}
-                 onPress={() => router.push(card.route as any)}  // ✅ FIXED: Cast to Href<string>
+                  onPress={() => router.push(card.route as any)}  // ✅ FIXED: Cast to Href<string>
                   activeOpacity={0.9}
                 >
                   <View style={styles.cardHeader}>

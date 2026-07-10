@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "685980809552",
+    "project_id": "cis-portal-58f1e",
+    "storage_bucket": "cis-portal-58f1e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:685980809552:android:f6504b41a60219105f5455",
+        "android_client_info": {
+          "package_name": "gov.in.assam.labour.cis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpYPizZRys_cT6hq7ZTlfN__nXI6_vDWY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
