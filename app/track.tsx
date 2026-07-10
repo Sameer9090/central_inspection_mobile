@@ -1,25 +1,23 @@
-import React, { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import AppHeader from "../components/AppHeader";
+import React, { useEffect, useState } from "react";
 import {
-    SafeAreaView,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Pressable,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    FlatList,
-    ActivityIndicator,
-    Alert,
-    View,
-    Modal,
-    ScrollView,
-    Pressable,
+    View
 } from "react-native";
-
+import { SafeAreaView } from "react-native-safe-area-context";
+import AppHeader from "../components/AppHeader";
+import ReminderModal from "../components/track/ReminderModal";
 import TrackCard from "../components/track/TrackCard";
 import { getTrackApplications } from "../services/trackService";
-import ReminderModal from "../components/track/ReminderModal";
 
 export default function TrackScreen() {
     const [applications, setApplications] = useState<any[]>([]);
