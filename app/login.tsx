@@ -140,7 +140,7 @@ export default function LoginScreen() {
               />
             </View>
             <Text style={styles.title}>Central Inspection System</Text>
-            <Text style={styles.subtitle}>Official Government Portal</Text>
+            <Text style={styles.subtitle}>Labour Welfare Department</Text>
           </View>
 
           <View style={styles.form}>
@@ -161,7 +161,7 @@ export default function LoginScreen() {
                 editable={!isLoading}
                 returnKeyType="next"
                 onSubmitEditing={() => passwordRef.current?.focus()}
-                blurOnSubmit={false}
+                
               />
               {errors.username && (
                 <Text style={styles.errorText}>{errors.username}</Text>
@@ -232,7 +232,7 @@ export default function LoginScreen() {
                 )
               }
             >
-              <Text style={styles.forgotPassword}>
+              <Text >
                 Forgot Password?
               </Text>
             </TouchableOpacity>
