@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
 // import React, { useRef, useState } from "react";
+import { registerForPushNotificationsAsync } from "@/services/pushNotificationService";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNotification } from "../context/NotificationContext";
 
 import { API } from "../services/api";
 
@@ -24,6 +26,7 @@ export default function OtpScreen() {
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const { refreshUnreadCount } = useNotification();
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -109,7 +112,12 @@ export default function OtpScreen() {
       if (response.data.success) {
         await AsyncStorage.setItem("token", response.data.token);
         await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
-
+        try {
+          await registerForPushNotificationsAsync();
+        } catch (e) {
+          console.log("Push registration failed:", e);
+        }
+        await refreshUnreadCount();
         // Role-based routing
         const userRole = response.data.user?.role_id;
         if (userRole === 1) {

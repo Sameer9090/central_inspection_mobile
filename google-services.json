@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "456640149451",
+    "project_id": "cis-mobile-7b064",
+    "storage_bucket": "cis-mobile-7b064.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:456640149451:android:38ebe96d5534ae8295284e",
+        "android_client_info": {
+          "package_name": "com.anonymous.cismobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUo6r2OsK0OJqAOVY8dx9Quk7wc-4jIms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

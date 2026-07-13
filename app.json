@@ -4,7 +4,7 @@
     "slug": "cis-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app_icon.png",
+    "icon": "./assets/images/updated_cis_logo.png",
     "scheme": "cismobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,19 +13,21 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app_icon.png",
+        "foregroundImage": "./assets/images/updated_cis_logo.png",
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.cismobile"
+      "package": "com.anonymous.cismobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/app_icon.png"
+      "favicon": "./assets/images/updated_cis_logo.png"
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-build-properties",
         {
@@ -37,7 +39,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/app_icon.png",
+          "image": "./assets/images/updated_cis_logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

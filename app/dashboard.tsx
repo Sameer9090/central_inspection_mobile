@@ -123,6 +123,7 @@ export default function DashboardScreen() {
   const loadDashboard = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem("token");
+      console.log("token ",token)
       if (!token) {
         router.replace("/login");
         return;
