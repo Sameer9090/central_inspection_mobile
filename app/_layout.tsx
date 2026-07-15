@@ -1,6 +1,8 @@
+import { Buffer } from 'buffer';
 import { Stack } from "expo-router";
 import "react-native-get-random-values";
 import { NotificationProvider } from "../context/NotificationContext";
+global.Buffer = Buffer;
 
 export default function RootLayout() {
   return (

@@ -1,12 +1,17 @@
-import React from "react";
+import { API } from "@/services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+
+    Image,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+
 import InspectionTable from "./InspectionTable";
 
 export default function PreviewForm({
@@ -21,28 +26,83 @@ export default function PreviewForm({
     loading,
 }: any) {
 
-
-
-
-
     const employer = common?.common_data?.employer || {};
     const establishment = common?.common_data?.establishment || {};
+    const files = common?.common_data?.files || {};
+    const gpsLocation = common?.common_data?.gps_location || null;
+    const [estPhotoUri, setEstPhotoUri] = useState("");
+    const [emplSignUri, setEmplSignUri] = useState("");
+    const [inspectorSignUri, setInspectorSignUri] = useState("");
+
+
+
+    // ─── Helper to build image URI from path ───
+    const getImageUri = async (path: string): Promise<string> => {
+        const token = await AsyncStorage.getItem("token");
+
+        const res = await API.get("/private-file-base64", {
+            params: {
+                path, // Use the function parameter
+            },
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        return `data:image/jpeg;base64,${res.data.base64}`;
+    }
+
+    // ─── Image paths from common data ───
+    const estPhotoPath = files?.est_photo || "";
+    const emplSignPath = files?.empl_sign || "";
+    const inspectorSignPath = files?.inspector_sign || "";
+
+
+    // ─── Establishment photos (up to 3) ───
+    const estPhotos = [
+        files?.est_photo_1 || files?.est_photo || "",
+        files?.est_photo_2 || "",
+        files?.est_photo_3 || "",
+    ].filter(Boolean);
+
+    useEffect(() => {
+        const loadImages = async () => {
+            try {
+                if (emplSignPath) {
+                    const uri = await getImageUri(emplSignPath);
+                    setEmplSignUri(uri);
+                }
+
+                if (inspectorSignPath) {
+                    const uri = await getImageUri(inspectorSignPath);
+                    setInspectorSignUri(uri);
+                }
+
+                if (estPhotoPath) {
+                    const uri = await getImageUri(estPhotoPath);
+                    setEstPhotoUri(uri);
+                }
+
+              
+            } catch (err) {
+                console.log("Image loading error:", err);
+            }
+        };
+
+        loadImages();
+    }, [emplSignPath, inspectorSignPath, estPhotoPath]);
 
     return (
-
         <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={previewStyles.container}
             showsVerticalScrollIndicator={false}
         >
-
-
             <Text style={previewStyles.title}>
                 Labour Inspection Report
             </Text>
 
             <View style={previewStyles.card}>
-
                 <Row
                     label="Selected Inspection Typs"
                     value={selectedTypes.join(", ").toUpperCase()}
@@ -73,6 +133,76 @@ export default function PreviewForm({
                 />
                 <Row label="District" value={establishment.district} />
                 <Row label="Ward" value={establishment.ward_no} />
+
+                {/* ─── GPS Location ─── */}
+                {gpsLocation && (
+                    <>
+                        <Row
+                            label="Latitude"
+                            value={gpsLocation.latitude?.toString() || "-"}
+                            valueColor="#1f928c"
+                        />
+                        <Row
+                            label="Longitude"
+                            value={gpsLocation.longitude?.toString() || "-"}
+                            valueColor="#1f928c"
+                        />
+                    </>
+                )}
+
+                {/* ─── Establishment Photos ─── */}
+
+            </Section>
+
+            {/* ─── Signatures Section ─── */}
+            <Section title="Signatures & Photos">
+                {/* Inspector Signature */}
+                {inspectorSignPath ? (
+                    <View style={{ marginBottom: 12 }}>
+                        <Text style={previewStyles.subSectionTitle}>Inspector Signature</Text>
+                        {inspectorSignUri ? (
+                            <Image
+                                source={{ uri: inspectorSignUri }}
+                                style={previewStyles.signatureImage}
+                                resizeMode="contain"
+                            />
+                        ) : null}
+                    </View>
+                ) : (
+                    <Row label="Inspector Signature" value="Not provided" valueColor="#E53935" />
+                )}
+
+                {/* Employer Signature */}
+                {emplSignPath ? (
+                    <View style={{ marginBottom: 12 }}>
+                        <Text style={previewStyles.subSectionTitle}>Employer Signature</Text>
+                        {emplSignUri ? (
+                            <Image
+                                source={{ uri: emplSignUri }}
+                                style={previewStyles.signatureImage}
+                                resizeMode="contain"
+                            />
+                        ) : null}
+                    </View>
+                ) : (
+                    <Row label="Employer Signature" value="Not provided" valueColor="#E53935" />
+                )}
+
+                {/* Establishment Photo (single main photo) */}
+                {estPhotoPath ? (
+                    <View style={{ marginBottom: 12 }}>
+                        <Text style={previewStyles.subSectionTitle}>Establishment Photo</Text>
+                        {estPhotoUri ? (
+                            <Image
+                                source={{ uri: estPhotoUri }}
+                                style={previewStyles.signatureImage}
+                                resizeMode="contain"
+                            />
+                        ) : null}
+                    </View>
+                ) : (
+                    <Row label="Establishment Photo" value="Not provided" valueColor="#E53935" />
+                )}
             </Section>
 
             <TouchableOpacity
@@ -122,7 +252,6 @@ export default function PreviewForm({
                 )}
             </TouchableOpacity>
         </ScrollView>
-
     );
 }
 
@@ -141,7 +270,6 @@ function Row({ label, value, valueColor }: any) {
     return (
         <View style={previewStyles.row}>
             <Text style={previewStyles.label}>{label}</Text>
-
             <Text
                 style={[
                     previewStyles.value,
@@ -771,5 +899,49 @@ const previewStyles = StyleSheet.create({
         fontWeight: "700",
         textAlign: "center",
         fontSize: 16,
+    },
+    // ─── Photo grid styles ───
+    photoGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 10,
+        marginTop: 8,
+    },
+    photoWrapper: {
+        width: "30%",
+        aspectRatio: 1,
+        borderRadius: 8,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: "#ddd",
+        backgroundColor: "#f9f9f9",
+    },
+    photoThumb: {
+        width: "100%",
+        height: "75%",
+    },
+    photoLabel: {
+        fontSize: 10,
+        color: "#666",
+        textAlign: "center",
+        paddingVertical: 4,
+        fontWeight: "600",
+        backgroundColor: "#f0f0f0",
+    },
+    // ─── Signature & large photo styles ───
+    signatureImage: {
+        width: "100%",
+        height: 120,
+        borderWidth: 1,
+        borderColor: "#ddd",
+        borderRadius: 8,
+        backgroundColor: "#fafafa",
+    },
+    estPhotoLarge: {
+        width: "100%",
+        height: 200,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: "#ddd",
     },
 });

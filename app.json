@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs camera access to take establishment photos with embedded GPS location for inspection records.",
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to embed GPS coordinates in inspection photos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,12 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.cismobile",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -28,6 +37,18 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow CIS to access your camera to take establishment photos with GPS location."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow CIS to use your location to embed GPS coordinates in inspection photos."
+        }
+      ],
       [
         "expo-build-properties",
         {

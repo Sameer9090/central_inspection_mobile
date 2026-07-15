@@ -97,29 +97,37 @@ export default function InspectionFormScreen() {
 
   const handleCommonFormSave = async (formData: Record<string, any>) => {
     setGpsAcquiring(true);
-    let gps: GPSLocation;
 
-    try {
-      gps = await getCurrentLocation(60000);
-    } catch (error: any) {
-      setGpsAcquiring(false);
-      if (error.message === "LOCATION_PERMISSION_DENIED") {
-        Alert.alert("Permission Required", "Location permission is required.", [{ text: "OK" }]);
-      } else if (error.message === "GPS_DISABLED") {
-        Alert.alert("GPS Required", "Please enable location services.", [{ text: "OK" }]);
-      } else if (error.message === "GPS_TIMEOUT") {
-        Alert.alert("GPS Timeout", "Could not get location. Please try again.", [{ text: "OK" }]);
-      } else {
-        Alert.alert("GPS Error", "Failed to get location. Please try again.");
+    let latitude = formData.latitude;
+    let longitude = formData.longitude;
+
+    // ─── NEW: Only get device GPS if photo didn't provide it ───
+    if (!latitude || !longitude) {
+      let gps: GPSLocation;
+      try {
+        gps = await getCurrentLocation(60000);
+        latitude = gps.latitude;
+        longitude = gps.longitude;
+      } catch (error: any) {
+        setGpsAcquiring(false);
+        if (error.message === "LOCATION_PERMISSION_DENIED") {
+          Alert.alert("Permission Required", "Location permission is required.", [{ text: "OK" }]);
+        } else if (error.message === "GPS_DISABLED") {
+          Alert.alert("GPS Required", "Please enable location services.", [{ text: "OK" }]);
+        } else if (error.message === "GPS_TIMEOUT") {
+          Alert.alert("GPS Timeout", "Could not get location. Please try again.", [{ text: "OK" }]);
+        } else {
+          Alert.alert("GPS Error", "Failed to get location. Please try again.");
+        }
+        throw new Error("GPS_REQUIRED");
       }
-      throw new Error("GPS_REQUIRED");
     }
 
     const payload = {
       ...formData,
       application_ref_no: refNo,
-      latitude: gps.latitude,
-      longitude: gps.longitude,
+      latitude,
+      longitude,
     };
 
     try {
@@ -140,15 +148,10 @@ export default function InspectionFormScreen() {
       return response.data;
     } catch (error: any) {
       setGpsAcquiring(false);
-
       if (error.response?.status !== 422) {
         console.error(error);
-        Alert.alert(
-          "Error",
-          error.response?.data?.message || "Something went wrong."
-        );
+        Alert.alert("Error", error.response?.data?.message || "Something went wrong.");
       }
-
       throw error;
     }
   };

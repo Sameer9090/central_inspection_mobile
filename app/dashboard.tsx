@@ -306,7 +306,7 @@ export default function DashboardScreen() {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              © 2026. Website all rights, reserved & belongs to Labour Welfare Department, Govt. of Assam, India.
+              © 2026. App all rights, reserved & belongs to Labour Welfare Department, Govt. of Assam, India.
             </Text>
             <Text style={styles.footerSubText}>
               Designed & Developed by: National Informatics Centre, Assam

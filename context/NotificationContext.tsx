@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 
 import * as Notifications from "expo-notifications";
 
@@ -17,7 +18,7 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType>({
   unreadCount: 0,
-  refreshUnreadCount: async () => {},
+  refreshUnreadCount: async () => { },
 });
 
 export const NotificationProvider = ({
@@ -43,31 +44,36 @@ export const NotificationProvider = ({
   };
 
   useEffect(() => {
-    // Initial load
     refreshUnreadCount();
 
-    // App is open and notification arrives
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      (state) => {
+        if (state === "active") {
+          refreshUnreadCount();
+        }
+      }
+    );
+
+    const interval = setInterval(() => {
+      refreshUnreadCount();
+    }, 30000); // every 30 seconds
+
     notificationListener.current =
       Notifications.addNotificationReceivedListener(() => {
-        console.log("Notification received");
         refreshUnreadCount();
       });
 
-    // User taps notification
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener(() => {
-        console.log("Notification opened");
         refreshUnreadCount();
       });
 
     return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-      }
-
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
+      appStateSubscription.remove();
+      clearInterval(interval);
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, []);
 
