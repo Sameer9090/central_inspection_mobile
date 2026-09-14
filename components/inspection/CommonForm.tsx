@@ -199,8 +199,44 @@ export default function CommonForm({
       setPhotoPreview(photoUri);
       setGpsStatus("success");
 
-      const serverPath = await uploadToTemp(photoUri);
-      setPhotoPath(serverPath);
+      // Get file info for better upload handling
+      const fileInfo = await fetch(photoUri);
+      const blob = await fileInfo.blob();
+      const fileExtension = blob.type.split('/')[1] || 'jpg';
+
+      // Create a proper File object with correct metadata
+      const formData = new FormData();
+      formData.append("file", {
+        uri: photoUri,
+        type: blob.type || 'image/jpeg',
+        name: `establishment_photo_${Date.now()}.${fileExtension}`,
+      } as any);
+
+      const token = await AsyncStorage.getItem("token");
+
+      // Add more debugging
+      console.log('Uploading photo:', {
+        uri: photoUri,
+        type: blob.type,
+        size: blob.size,
+        name: `establishment_photo_${Date.now()}.${fileExtension}`
+      });
+
+      const res = await API.post("/upload/temp", formData, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 30000, // 30 second timeout for large files
+      });
+
+      if (res.data && res.data.data && res.data.data.path) {
+        setPhotoPath(res.data.data.path);
+        console.log('Photo uploaded successfully:', res.data.data.path);
+      } else {
+        throw new Error('Invalid response from server');
+      }
 
       if (errors["inspection_photo_path"]) {
         setErrors((prev) => {
@@ -211,8 +247,30 @@ export default function CommonForm({
       }
     } catch (err: any) {
       console.error("Photo processing error:", err);
-      setApiError("Failed to process photo. Please try again.");
+
+      // More detailed error handling
+      let errorMessage = "Failed to process photo. Please try again.";
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Server response:', err.response.data);
+        console.error('Status code:', err.response.status);
+
+        if (err.response.status === 413) {
+          errorMessage = "Photo is too large. Please try taking a smaller photo.";
+        } else if (err.response.status === 415) {
+          errorMessage = "Unsupported photo format. Please try JPEG format.";
+        } else if (err.response.data && err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.request) {
+        // The request was made but no response was received
+        errorMessage = "Network error. Please check your connection and try again.";
+      }
+
+      setApiError(errorMessage);
       setGpsStatus("failed");
+      Alert.alert("Upload Error", errorMessage);
     } finally {
       setUploadingPhoto(false);
     }
@@ -493,9 +551,14 @@ export default function CommonForm({
           selectedValue={district}
           onValueChange={(value) => {
             setDistrict(value);
-            if (value === "Kamrup Metropolitan") setPanchayat("");
-            else setWardNo("");
+
+            if (value === "Kamrup Metropolitan") {
+              setPanchayat("");
+            } else {
+              setWardNo("");
+            }
           }}
+          style={{ color: "#000000" }}
         >
           <Picker.Item label="Select District" value="" />
           <Picker.Item label="Baksa" value="Baksa" />
