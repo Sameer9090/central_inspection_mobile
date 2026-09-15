@@ -280,6 +280,8 @@ const WorkerTable = ({
 
 export default function ASEForm({
   inspectionASE,
+  eodbAse,
+  eodbCommon,
   user,
   onSave,
   onBack,
@@ -288,6 +290,8 @@ export default function ASEForm({
   referenceNumber,
 }: {
   inspectionASE: any;
+  eodbAse: any;
+   eodbCommon: any;
   user: any;
   onSave?: (data: any) => void;
   onBack?: () => void;
@@ -295,6 +299,7 @@ export default function ASEForm({
   sectionsStatus?: Record<string, boolean>;
   referenceNumber?: string;
 }) {
+
   // ===== SECTION 1: Workplace Safety and Health Measures =====
   const [cleanlinessWorkplace, setCleanlinessWorkplace] = useState(
     inspectionASE?.cleanliness_workplace_ase === "Yes",
@@ -444,12 +449,48 @@ export default function ASEForm({
   const [establishmentName, setEstablishmentName] = useState(
     inspectionASE?.establishment_name || "",
   );
+  const [lin, setLin] = useState(
+    inspectionASE?.lin || eodbAse?.lin || "",
+  );
+
+
+
+  const [dateOfApplication, setDateOfApplication] = useState(
+    inspectionASE?.date_of_application || eodbAse?.date_of_application || ""
+  );
+
+  const [natureOfBusiness, setNatureOfBusiness] = useState(
+    inspectionASE?.nature_of_business || eodbAse?.nature_of_business || ""
+  );
+
+  const [noOfEmployees, setNoOfEmployees] = useState(
+    inspectionASE?.no_of_employees || eodbAse?.no_of_employees || ""
+  );
+
+  const [categoryOfBusiness, setCategoryOfBusiness] = useState(
+    inspectionASE?.category_of_business || eodbAse?.category_of_business || ""
+  );
+
+  const [dateOfExpiryPreviousLicense, setDateOfExpiryPreviousLicense] =
+    useState(
+      inspectionASE?.date_of_expiry_previous_license ||
+      eodbAse?.date_of_expiry_previous_license ||
+      ""
+    );
+
+  const [previousLicenseWorkerCount, setPreviousLicenseWorkerCount] =
+    useState(
+      inspectionASE?.previous_license_worker_count ||
+      eodbAse?.previous_license_worker_count ||
+      ""
+    );
   const [contactNumberEmail, setContactNumberEmail] = useState(
     inspectionASE?.contact_number_email || "",
   );
   const [dateOfCommencement, setDateOfCommencement] = useState(
-    inspectionASE?.date_of_commencement || "",
+    inspectionASE?.date_of_commencement || eodbCommon?.date_of_commencement || "",
   );
+  console.log(dateOfCommencement);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [openingClosingHours, setOpeningClosingHours] = useState(
     inspectionASE?.opening_and_closing_hours || "",
@@ -666,6 +707,13 @@ export default function ASEForm({
       // Employer details
       name_address_of_employer: nameAddressOfEmployer,
       establishment_name: establishmentName,
+      lin: lin,
+      date_of_application: dateOfApplication,
+      nature_of_business: natureOfBusiness,
+      no_of_employees: noOfEmployees,
+      category_of_business: categoryOfBusiness,
+      date_of_expiry_previous_license: dateOfExpiryPreviousLicense,
+      previous_license_worker_count: previousLicenseWorkerCount,
       contact_number_email: contactNumberEmail,
       date_of_commencement: dateOfCommencement,
       opening_and_closing_hours: openingClosingHours,
@@ -1051,6 +1099,94 @@ export default function ASEForm({
           />
           {errors.establishment_name && (
             <ErrorText>{errors.establishment_name}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label required>Labour Identification Number (LIN)</Label>
+          <TextInputField
+            value={lin}
+            onChangeText={setLin}
+            placeholder="Enter Details"
+            maxLength={255}
+          />
+          {errors.lin && (
+            <ErrorText>{errors.lin}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label>Date of Application</Label>
+          <TextInputField
+            value={dateOfApplication}
+            onChangeText={setDateOfApplication}
+            placeholder="DD-MM-YYYY"
+            maxLength={10}
+          />
+          {errors.date_of_application && (
+            <ErrorText>{errors.date_of_application}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label>Nature of Business</Label>
+          <TextInputField
+            value={natureOfBusiness}
+            onChangeText={setNatureOfBusiness}
+            placeholder="Enter Nature of Business"
+            maxLength={255}
+          />
+          {errors.nature_of_business && (
+            <ErrorText>{errors.nature_of_business}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label>Number of Employees</Label>
+          <TextInputField
+            value={String(noOfEmployees)}
+            onChangeText={(text) =>
+              setNoOfEmployees(text.replace(/[^0-9]/g, ""))
+            }
+            placeholder="Enter number of employees"
+            keyboardType="numeric"
+          />
+          {errors.no_of_employees && (
+            <ErrorText>{errors.no_of_employees}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label>Category of Business</Label>
+          <TextInputField
+            value={categoryOfBusiness}
+            onChangeText={setCategoryOfBusiness}
+            placeholder="Enter Category of Business"
+            maxLength={255}
+          />
+          {errors.category_of_business && (
+            <ErrorText>{errors.category_of_business}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label>Date of expiry of previous license</Label>
+          <TextInputField
+            value={dateOfExpiryPreviousLicense}
+            onChangeText={setDateOfExpiryPreviousLicense}
+            placeholder="DD-MM-YYYY"
+            maxLength={10}
+          />
+          {errors.date_of_expiry_previous_license && (
+            <ErrorText>{errors.date_of_expiry_previous_license}</ErrorText>
+          )}
+        </View>
+        <View style={styles.formGroup}>
+          <Label>No. of workers mentioned in previous license</Label>
+          <TextInputField
+            value={String(previousLicenseWorkerCount)}
+            onChangeText={(text) =>
+              setPreviousLicenseWorkerCount(text.replace(/[^0-9]/g, ""))
+            }
+            placeholder="Enter number of workers"
+            keyboardType="numeric"
+          />
+          {errors.previous_license_worker_count && (
+            <ErrorText>{errors.previous_license_worker_count}</ErrorText>
           )}
         </View>
 

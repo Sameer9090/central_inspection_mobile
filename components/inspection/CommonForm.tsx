@@ -21,6 +21,7 @@ import CameraWithGPS from "../CameraWithGPS";
 export default function CommonForm({
   application,
   common,
+  eodbCommon,
   user,
   onSave,
   gpsAcquiring,
@@ -29,6 +30,7 @@ export default function CommonForm({
 }: {
   application: any;
   common: any;
+  eodbCommon: any;
   user: any;
   onSave: (formData: any) => Promise<any>;
   gpsAcquiring?: boolean;
@@ -53,18 +55,30 @@ export default function CommonForm({
   const isCompleted = sectionsStatus?.common === true;
   const isCurrent = currentStep === "common";
 
+
   // ─── Form state (unchanged) ───
-  const [firstName, setFirstName] = useState(common?.common_data?.employer?.first_name || "");
-  const [lastName, setLastName] = useState(common?.common_data?.employer?.last_name || "");
-  const [mobile, setMobile] = useState(common?.common_data?.employer?.mobile || "");
+  const [firstName, setFirstName] = useState(common?.common_data?.employer?.first_name || eodbCommon?.employer?.first_name || "");
+  const [lastName, setLastName] = useState(common?.common_data?.employer?.last_name || eodbCommon?.employer?.last_name || "");
+  const [mobile, setMobile] = useState(common?.common_data?.employer?.mobile || eodbCommon?.employer?.mobile || "");
   const [alternateMobile, setAlternateMobile] = useState(common?.common_data?.employer?.alt_mobile || "");
-  const [email, setEmail] = useState(common?.common_data?.employer?.email || "");
-  const [address1, setAddress1] = useState(common?.common_data?.establishment?.address_1 || "");
-  const [address2, setAddress2] = useState(common?.common_data?.establishment?.address_2 || "");
-  const [address3, setAddress3] = useState(common?.common_data?.establishment?.address_3 || "");
+  const [email, setEmail] = useState(common?.common_data?.employer?.email || eodbCommon?.employer?.email || "");
+  const [address1, setAddress1] = useState(common?.common_data?.establishment?.address_1 || eodbCommon?.establishment?.address_1 || "");
+  const [address2, setAddress2] = useState(common?.common_data?.establishment?.address_2 || eodbCommon?.establishment?.address_2 || "");
+  const [address3, setAddress3] = useState(common?.common_data?.establishment?.address_3 || eodbCommon?.establishment?.town_village || "");
   const [landmark, setLandmark] = useState(common?.common_data?.establishment?.landmark || "");
-  const [district, setDistrict] = useState(common?.common_data?.establishment?.district || "");
+  const districtValue =
+    common?.common_data?.establishment?.district ||
+    eodbCommon?.establishment?.district ||
+    "";
+
+  const normalizedDistrict =
+    districtValue === "Kamrup Metro"
+      ? "Kamrup Metropolitan"
+      : districtValue;
+
+  const [district, setDistrict] = useState(normalizedDistrict);
   const [wardNo, setWardNo] = useState(common?.common_data?.establishment?.ward_no || "");
+  const [pincode, setPincode] = useState(common?.common_data?.establishment?.pincode || eodbCommon?.establishment?.pincode || "");
   const [ase, setAse] = useState(common?.selected_types?.includes("ase") || false);
   const [contract, setContract] = useState(common?.selected_types?.includes("contract") || false);
   const [minimumWage, setMinimumWage] = useState(common?.selected_types?.includes("minimumwage") || false);
@@ -354,9 +368,11 @@ export default function CommonForm({
         est_address_3: address3,
         est_landmark: landmark,
         form_selector: formSelector,
+        est_state: "Assam",
         est_district: district,
         est_ward_no: district === "Kamrup Metropolitan" ? wardNo : "",
         panchayat: district !== "Kamrup Metropolitan" ? panchayat : "",
+        pincode: pincode,
         submission_location: submissionLocation,
         inspection_photo_path: photoPath,
         empl_sign_path: emplSignPath,
@@ -544,19 +560,21 @@ export default function CommonForm({
         placeholder="Enter landmark"
       />
       {getFieldError("est_landmark") ? <Text style={styles.fieldError}>{getFieldError("est_landmark")}</Text> : null}
+      <Text style={styles.label}>
+        State <Text style={styles.required}>*</Text>
+      </Text>
 
+      <TextInput
+        style={styles.input}
+        value="Assam"
+        editable={false}
+      />
       <Text style={styles.label}>District <Text style={styles.required}>*</Text></Text>
       <View style={[styles.input, hasFieldError("est_district") && styles.inputError, { padding: 0 }]}>
         <Picker
           selectedValue={district}
           onValueChange={(value) => {
             setDistrict(value);
-
-            if (value === "Kamrup Metropolitan") {
-              setPanchayat("");
-            } else {
-              setWardNo("");
-            }
           }}
           style={{ color: "#000000" }}
         >
@@ -600,38 +618,87 @@ export default function CommonForm({
       </View>
       {getFieldError("est_district") ? <Text style={styles.fieldError}>{getFieldError("est_district")}</Text> : null}
 
-      {district === "Kamrup Metropolitan" ? (
+      <Text style={styles.label}>
+        Ward No{" "}
+        {district === "Kamrup Metropolitan" && (
+          <Text style={styles.required}>*</Text>
+        )}
+      </Text>
+
+      <TextInput
+        style={[
+          styles.input,
+          hasFieldError("est_ward_no") && styles.inputError,
+        ]}
+        value={wardNo}
+        onChangeText={setWardNo}
+        placeholder="Enter ward number"
+      />
+
+      {getFieldError("est_ward_no") ? (
+        <Text style={styles.fieldError}>
+          {getFieldError("est_ward_no")}
+        </Text>
+      ) : null}
+
+      {/* Panchayat — only for other districts */}
+      {district !== "Kamrup Metropolitan" && (
         <>
-          <Text style={styles.label}>Ward No <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.label}>Panchayat</Text>
+
           <TextInput
-            style={[styles.input, hasFieldError("est_ward_no") && styles.inputError]}
-            value={wardNo}
-            onChangeText={setWardNo}
-            placeholder="Enter ward number"
-          />
-          {getFieldError("est_ward_no") ? <Text style={styles.fieldError}>{getFieldError("est_ward_no")}</Text> : null}
-        </>
-      ) : (
-        <>
-          <Text style={styles.label}>Panchayat <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={[styles.input, hasFieldError("panchayat") && styles.inputError]}
+            style={[
+              styles.input,
+              hasFieldError("panchayat") && styles.inputError,
+            ]}
             value={panchayat}
             onChangeText={setPanchayat}
             placeholder="Enter panchayat"
           />
-          {getFieldError("panchayat") ? <Text style={styles.fieldError}>{getFieldError("panchayat")}</Text> : null}
+
+          {getFieldError("panchayat") ? (
+            <Text style={styles.fieldError}>
+              {getFieldError("panchayat")}
+            </Text>
+          ) : null}
         </>
       )}
 
-      <Text style={styles.label}>Submission Location <Text style={styles.required}>*</Text></Text>
+      <Text style={styles.label}>
+        Pincode <Text style={styles.required}>*</Text>
+      </Text>
+
+      <TextInput
+        style={[
+          styles.input,
+          hasFieldError("pincode") && styles.inputError,
+        ]}
+        value={pincode}
+        onChangeText={(text) => {
+          // Only allow numbers, max 6 digits
+          setPincode(text.replace(/[^0-9]/g, "").slice(0, 6));
+        }}
+        placeholder="Enter pincode"
+        keyboardType="number-pad"
+        maxLength={6}
+      />
+
+      {getFieldError("pincode") ? (
+        <Text style={styles.fieldError}>
+          {getFieldError("pincode")}
+        </Text>
+      ) : null}
+
+
+
+      { /* <Text style={styles.label}>Submission Location <Text style={styles.required}>*</Text></Text> *
       <TextInput
         style={[styles.input, hasFieldError("submission_location") && styles.inputError]}
         value={submissionLocation}
         onChangeText={setSubmissionLocation}
         placeholder="Enter submission location"
       />
-      {getFieldError("submission_location") ? <Text style={styles.fieldError}>{getFieldError("submission_location")}</Text> : null}
+      {getFieldError("submission_location") ? <Text style={styles.fieldError}>{getFieldError("submission_location")}</Text> : null} */}
 
       <Text style={styles.heading}>Inspection Types <Text style={styles.required}>*</Text></Text>
       <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>

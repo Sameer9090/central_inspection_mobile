@@ -46,7 +46,8 @@ export default function InspectionFormScreen() {
   const [currentStep, setCurrentStep] = useState<string>("common");
   const [sectionsStatus, setSectionsStatus] = useState<Record<string, boolean>>({});
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-
+  const [eodbCommon, setEodbCommon] = useState<string[]>([]);
+  const [eodbAse, setEodbAse] = useState<string[]>([]);
   useEffect(() => {
     loadApplication();
   }, []);
@@ -62,6 +63,9 @@ export default function InspectionFormScreen() {
 
       setApplication(response.data.application);
       setCommon(response.data.common);
+      setEodbCommon(response.data.eodb_common);
+      setEodbAse(response.data.eodb);
+    
 
       const ase = response.data.inspections?.find(
         (item: any) => item.inspection_type === "ASE",
@@ -511,6 +515,7 @@ export default function InspectionFormScreen() {
           <CommonForm
             application={application}
             common={common}
+            eodbCommon={eodbCommon}
             user={user}
             onSave={handleCommonFormSave}
             gpsAcquiring={gpsAcquiring}
@@ -522,6 +527,8 @@ export default function InspectionFormScreen() {
         return (
           <ASEForm
             inspectionASE={inspectionASE}
+            eodbAse={eodbAse}
+            eodbCommon={eodbCommon}
             user={user}
             onSave={(data) => handleSectionSave("ase", data)}
             onBack={handleBack}
@@ -571,6 +578,7 @@ export default function InspectionFormScreen() {
           <CommonForm
             application={application}
             common={common}
+            eodbCommon={eodbCommon}
             user={user}
             onSave={handleCommonFormSave}
             gpsAcquiring={gpsAcquiring}
