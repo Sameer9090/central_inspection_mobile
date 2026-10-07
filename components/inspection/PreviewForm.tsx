@@ -131,6 +131,7 @@ export default function PreviewForm({
                         .filter(Boolean)
                         .join(", ")}
                 />
+                <Row label="State" value={"Assam"} />
                 <Row label="District" value={establishment.district} />
                 <Row label="Ward" value={establishment.ward_no} />
 
@@ -288,6 +289,13 @@ function ASEPreview({ data, onEdit }: any) {
     const establishmentRows = [
         { label: "Name and address of Employer / Proprietor / Managing Director / Partner / Manager / Contractor", value: data?.name_address_of_employer },
         { label: "Name and Address of the Establishment", value: data?.establishment_name },
+         { label: "Labour Identification Number (LIN)", value: data?.lin },
+        { label: "Date of Application", value: data?.date_of_application },
+        { label: "Nature of Business", value: data?.nature_of_business },
+         { label: "Number of Employees", value: data?.no_of_employees },
+         { label: "Category of Business", value: data?.category_of_business },
+        { label: "Date of expiry of previous license", value: data?.date_of_expiry_previous_license },
+         {label: "No. of workers mentioned in previous license", value: data?.previous_license_worker_count },
         { label: "Contact Number and e-mail", value: data?.contact_number_email },
         { label: "Date of Commencement of business", value: data?.date_of_commencement },
         { label: "Opening and closing hours (under Sec-34)", value: data?.opening_and_closing_hours },

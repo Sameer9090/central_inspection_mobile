@@ -498,7 +498,7 @@ export default function ASEForm({
   const [certificateRegistrationDate, setCertificateRegistrationDate] =
     useState(inspectionASE?.certificate_registration_date || "");
   const [registrationNumber, setRegistrationNumber] = useState(
-    inspectionASE?.registration_number || "",
+    inspectionASE?.registration_number ||       eodbAse?.registration_number ||"",
   );
   const [certificateRenewalObtained, setCertificateRenewalObtained] = useState(
     inspectionASE?.certificate_renewal_obtained || "",

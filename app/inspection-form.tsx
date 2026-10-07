@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -28,6 +28,7 @@ import { API } from "../services/api";
 import { getCurrentLocation, GPSLocation } from "../utils/location";
 
 export default function InspectionFormScreen() {
+  const scrollViewRef = useRef<ScrollView>(null);
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const { refNo } = useLocalSearchParams();
@@ -65,7 +66,7 @@ export default function InspectionFormScreen() {
       setCommon(response.data.common);
       setEodbCommon(response.data.eodb_common);
       setEodbAse(response.data.eodb);
-    
+
 
       const ase = response.data.inspections?.find(
         (item: any) => item.inspection_type === "ASE",
@@ -143,7 +144,29 @@ export default function InspectionFormScreen() {
       setGpsAcquiring(false);
 
       if (response.data.status) {
-        Alert.alert("Success", "Common data saved with GPS location.");
+        // Alert.alert("Success", "Common data saved with GPS location.");
+        Alert.alert(
+          "Success",
+          `Common data saved with GPS location`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Scroll to the top after the user closes the success alert
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({
+                    y: 0,
+                    animated: true,
+                  });
+                }, 100);
+              },
+            },
+          ],
+          {
+            cancelable: false,
+          }
+        );
+
         setCurrentStep(response.data.next_step || "ase");
         await loadApplication();
       } else {
@@ -240,8 +263,30 @@ export default function InspectionFormScreen() {
       });
 
       if (response.data.status) {
-        Alert.alert("Success", `${sectionType.toUpperCase()} saved successfully`);
+        Alert.alert(
+          "Success",
+          `${sectionType.toUpperCase()} saved successfully`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Scroll to the top after the user closes the success alert
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({
+                    y: 0,
+                    animated: true,
+                  });
+                }, 100);
+              },
+            },
+          ],
+          {
+            cancelable: false,
+          }
+        );
+
         setCurrentStep(response.data.data?.next_step || "preview");
+
         await loadApplication();
       }
       return response.data;
@@ -482,17 +527,16 @@ export default function InspectionFormScreen() {
 
     } catch (e: any) {
 
-      console.log(e.response?.data);
+      console.log("Submit inspection error:", e?.response?.data || e);
 
       Alert.alert(
         "Error",
-        e.response?.data?.message ||
-        "Submission failed."
-      );
+        e?.response?.data?.message ||
+        e?.response?.data?.msg ||
+        "Submission failed.");
 
     } finally {
-
-
+      setSubmittingInspection(false);
 
     }
   };
@@ -625,7 +669,11 @@ export default function InspectionFormScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
       <AppHeader />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Step Progress Indicator */}
         <StepProgressIndicator
           currentStep={currentStep}
@@ -852,6 +900,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    textAlign: "center",
   },
   stepsRow: {
     flexDirection: "row",
