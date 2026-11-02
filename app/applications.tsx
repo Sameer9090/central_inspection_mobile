@@ -174,7 +174,7 @@ export default function ApplicationsScreen() {
     return (
       <SafeAreaView
         style={[styles.container, styles.center]}
-        edges={[ "left", "right"]}
+        edges={["left", "right"]}
       >
 
         <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
@@ -185,7 +185,7 @@ export default function ApplicationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[ "left", "right","bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
 
       {/* ✅ FIXED: AppHeader at top */}
@@ -532,10 +532,10 @@ function ApplicationCard({
               >
                 {inspectionDate
                   ? new Date(inspectionDate).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
                   : "Select Date"}
               </Text>
             </View>
@@ -581,7 +581,23 @@ function ApplicationCard({
               <Icons.ChevronRight />
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={styles.reportClosedButton}
+            activeOpacity={0.8}
+            onPress={() =>
+              router.push({
+                pathname: "/report-closed",
+                params: { refNo: item.appl_ref_no },
+              })
+            }
+          >
+            <Feather name="camera" size={17} color="#E53935" />
+            <Text style={styles.reportClosedButtonText}>
+              Report Establishment Closed
+            </Text>
+          </TouchableOpacity>
         </View>
+
       </View>
     </Animated.View>
   );
@@ -1000,5 +1016,23 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: BOTTOM_NAV_HEIGHT,
     backgroundColor: "#f0f2f5",
+  },
+  reportClosedButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FFF1F0",
+    borderWidth: 1,
+    borderColor: "#E53935",
+    padding: 11,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+
+  reportClosedButtonText: {
+    color: "#E53935",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

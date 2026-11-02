@@ -1,6 +1,6 @@
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -85,6 +85,7 @@ export default function DashboardScreen() {
     inspection_close_request_count: 0,
     pull_back_count: 0,
     re_initiate_inspection_count: 0,
+    unsuccessful_inspection_visits: 0,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,9 +100,9 @@ export default function DashboardScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  // useEffect(() => {
+  //   loadDashboard();
+  // }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -123,7 +124,7 @@ export default function DashboardScreen() {
   const loadDashboard = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem("token");
-      console.log("token ",token)
+      // console.log("token ", token)
       if (!token) {
         router.replace("/login");
         return;
@@ -146,6 +147,7 @@ export default function DashboardScreen() {
           inspection_close_request_count: data.inspection_close_request_count || 0,
           pull_back_count: data.pull_back_count || 0,
           re_initiate_inspection_count: data.re_initiate_inspection_count || 0,
+          unsuccessful_inspection_visits: data.unsuccessful_inspection_visits || 0,
         });
       }
     } catch (error: any) {
@@ -162,7 +164,11 @@ export default function DashboardScreen() {
       setRefreshing(false);
     }
   }, []);
-
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard();
+    }, [loadDashboard])
+  );
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboard();
@@ -194,6 +200,13 @@ export default function DashboardScreen() {
       { title: "APPLICATIONS IN QUEUE", value: stats.applications_in_queue, icon: Icons.FileText, color: "#4A90D9", route: "/applications" },
       { title: "APPLICATIONS FORWARDED", value: stats.applications_forwarded, icon: Icons.Send, color: "#7B68EE", route: "/applications/forwarded" },
       {
+        title: "UNSUCCESSFUL INSPECTION VISITS",
+        value: stats.unsuccessful_inspection_visits,
+        icon: Icons.AlertTriangle,
+        color: "#D97706",
+        route: "/unsuccessful-inspection-visits",
+      },
+      {
         title: "TRACK APPLICATIONS",
         value: "",
         subtitle: "Search • Track • History",
@@ -204,11 +217,14 @@ export default function DashboardScreen() {
     ];
 
     return allCards.filter((card) => {
-      if (card.route === "/track") {
+      if (
+        card.route === "/track" ||
+        card.route === "/unsuccessful-inspection-visits"
+      ) {
         return true;
       }
-      // ✅ FIXED: Type-safe comparison
-      return typeof card.value === 'number' && card.value > 0;
+
+      return typeof card.value === "number" && card.value > 0;
     });
   };
 
@@ -275,14 +291,14 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={index}
                   style={[styles.statCard, { backgroundColor: card.color }]}
-                 onPress={() => router.push(card.route as any)}  // ✅ FIXED: Cast to Href<string>
+                  onPress={() => router.push(card.route as any)}  // ✅ FIXED: Cast to Href<string>
                   activeOpacity={0.9}
                 >
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
                     <card.icon />
                   </View>
-                  {card.value ? (
+                  {card.value !== "" ? (
                     <Text style={styles.cardValue}>{card.value}</Text>
                   ) : (
                     <View style={{ height: 36 }} />
