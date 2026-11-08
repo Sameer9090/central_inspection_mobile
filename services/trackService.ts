@@ -10,7 +10,7 @@ export const getTrackApplications = async (
 
         const token = await AsyncStorage.getItem("token");
 
-        console.log("TOKEN:", token);
+        // console.log("TOKEN:", token);
 
         const response = await API.get("/track-applications", {
             params: {
@@ -23,8 +23,8 @@ export const getTrackApplications = async (
             },
         });
 
-        console.log("STATUS:", response.status);
-        console.log("DATA:", response.data);
+        // console.log("STATUS:", response.status);
+        // console.log("DATA:", response.data);
 
         return response.data;
 

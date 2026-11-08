@@ -1,8 +1,6 @@
-// components/AppHeader.tsx
-
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
   Animated,
@@ -30,6 +28,7 @@ const MENU_ITEMS = [
 ];
 
 export default function AppHeader() {
+  
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -73,13 +72,13 @@ export default function AppHeader() {
   }, [menuAnim, fadeAnim]);
 
   const handleNavigation = useCallback(
-    (route: string, replace: boolean) => {
+    (route: (typeof MENU_ITEMS)[number]["route"], replace: boolean) => {
       closeMenu();
       setTimeout(() => {
         if (replace) {
-          router.replace(route);
+          router.replace(route as Href);
         } else {
-          router.push(route);
+          router.push(route as Href);
         }
       }, 200);
     },
@@ -87,27 +86,31 @@ export default function AppHeader() {
   );
 
   const logout = useCallback(async () => {
+    setLogoutModalVisible(false);
+
     try {
-      setLogoutModalVisible(false);
       const token = await AsyncStorage.getItem("token");
 
       if (token) {
-        await API.post(
-          "/logout",
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        try {
+          await API.post(
+            "/logout",
+            {},
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+        } catch (apiError) {
+          console.log(
+            "Server unavailable. Performing local logout."
+          );
+        }
       }
-
+    } finally {
       await AsyncStorage.multiRemove(["token", "user"]);
-      await refreshUnreadCount();
       router.replace("/login");
-    } catch (error) {
-      console.error("Logout failed:", error);
     }
-  }, [refreshUnreadCount]);
+  }, []);
 
   return (
     <>
@@ -153,9 +156,8 @@ export default function AppHeader() {
                 style={styles.iconButton}
                 onPress={() => router.push("/notifications")}
                 activeOpacity={0.7}
-                accessibilityLabel={`Notifications${
-                  unreadCount > 0 ? `, ${unreadCount} unread` : ""
-                }`}
+                accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""
+                  }`}
                 accessibilityRole="button"
               >
                 <Feather name="bell" size={22} color="#fff" />

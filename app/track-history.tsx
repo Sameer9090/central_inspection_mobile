@@ -284,19 +284,6 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
-    heading: {
-        marginTop: 15,
-        color: "#64748B",
-        fontWeight: "700",
-        fontSize: 12,
-    },
-
-    value: {
-        marginTop: 4,
-        fontSize: 15,
-        color: "#1E293B",
-    },
-
     separator: {
         height: 1,
         backgroundColor: "#E2E8F0",

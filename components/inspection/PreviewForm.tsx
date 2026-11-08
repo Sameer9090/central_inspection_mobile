@@ -24,6 +24,7 @@ export default function PreviewForm({
     onEdit,
     onSubmit,
     loading,
+    readOnly = false,
 }: any) {
 
     const employer = common?.common_data?.employer || {};
@@ -33,30 +34,54 @@ export default function PreviewForm({
     const [estPhotoUri, setEstPhotoUri] = useState("");
     const [emplSignUri, setEmplSignUri] = useState("");
     const [inspectorSignUri, setInspectorSignUri] = useState("");
+    console.log("PREVIEW COMMON DATA:", JSON.stringify(common, null, 2));
 
 
 
-    // ─── Helper to build image URI from path ───
+
     const getImageUri = async (path: string): Promise<string> => {
-        const token = await AsyncStorage.getItem("token");
+        if (!path) return "";
 
-        const res = await API.get("/private-file-base64", {
-            params: {
-                path, // Use the function parameter
-            },
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+        // Local device images
+        if (
+            path.startsWith("file://") ||
+            path.startsWith("content://") ||
+            path.startsWith("data:")
+        ) {
+            return path;
+        }
+
+        // Temporary files on Laravel public storage
+        if (path.startsWith("temp/")) {
+            const apiBaseUrl = API.defaults.baseURL || "";
+            const serverBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
+
+            return `${serverBaseUrl}/storage/${path}`;
+        }
+
+        // Private files: Axios interceptor attaches the token
+        const response = await API.get("/private-file-base64", {
+            params: { path },
         });
 
-        return `data:image/jpeg;base64,${res.data.base64}`;
-    }
+        if (!response.data?.base64) {
+            throw new Error("Private image was not returned by the server.");
+        }
+
+        return `data:${response.data.mime || "image/jpeg"};base64,${response.data.base64}`;
+    };
+
+
 
     // ─── Image paths from common data ───
-    const estPhotoPath = files?.est_photo || "";
-    const emplSignPath = files?.empl_sign || "";
+    const estPhotoPath = files?.est_photo_local || files?.est_photo || "";
+    const emplSignPath = files?.empl_sign_local || files?.empl_sign || "";
     const inspectorSignPath = files?.inspector_sign || "";
-
+    console.log("PREVIEW IMAGE PATHS:", {
+        estPhotoPath,
+        emplSignPath,
+        inspectorSignPath,
+    });
 
     // ─── Establishment photos (up to 3) ───
     const estPhotos = [
@@ -66,30 +91,64 @@ export default function PreviewForm({
     ].filter(Boolean);
 
     useEffect(() => {
-        const loadImages = async () => {
+        let isMounted = true;
+
+        const loadSingleImage = async (
+            path: string,
+            imageName: string,
+            setImageUri: (uri: string) => void
+        ) => {
+            if (!path) {
+                setImageUri("");
+                return;
+            }
+
             try {
-                if (emplSignPath) {
-                    const uri = await getImageUri(emplSignPath);
-                    setEmplSignUri(uri);
-                }
+                console.log(`Loading ${imageName}:`, path);
 
-                if (inspectorSignPath) {
-                    const uri = await getImageUri(inspectorSignPath);
-                    setInspectorSignUri(uri);
-                }
+                const uri = await getImageUri(path);
 
-                if (estPhotoPath) {
-                    const uri = await getImageUri(estPhotoPath);
-                    setEstPhotoUri(uri);
+                if (isMounted) {
+                    setImageUri(uri);
+                    console.log(`${imageName} loaded successfully`);
                 }
-
-              
             } catch (err) {
-                console.log("Image loading error:", err);
+                console.log(`${imageName} loading failed:`, err);
+
+                if (isMounted) {
+                    setImageUri("");
+                }
             }
         };
 
+        const loadImages = async () => {
+            await Promise.all([
+                loadSingleImage(
+                    emplSignPath,
+                    "Employer Signature",
+                    setEmplSignUri
+                ),
+
+                loadSingleImage(
+                    inspectorSignPath,
+                    "Inspector Signature",
+                    setInspectorSignUri
+                ),
+
+                loadSingleImage(
+                    estPhotoPath,
+                    "Establishment Photo",
+                    setEstPhotoUri
+                ),
+            ]);
+        };
+
         loadImages();
+
+        return () => {
+            isMounted = false;
+        };
+
     }, [emplSignPath, inspectorSignPath, estPhotoPath]);
 
     return (
@@ -104,7 +163,7 @@ export default function PreviewForm({
 
             <View style={previewStyles.card}>
                 <Row
-                    label="Selected Inspection Typs"
+                    label="Selected Inspection Types"
                     value={selectedTypes.join(", ").toUpperCase()}
                 />
             </View>
@@ -133,6 +192,9 @@ export default function PreviewForm({
                 />
                 <Row label="District" value={establishment.district} />
                 <Row label="Ward" value={establishment.ward_no} />
+                <Row label="Panchayat" value={establishment.panchayat} />
+                <Row label="State" value={establishment.state} />
+                <Row label="PIN Code" value={establishment.pincode} />
 
                 {/* ─── GPS Location ─── */}
                 {gpsLocation && (
@@ -205,19 +267,22 @@ export default function PreviewForm({
                 )}
             </Section>
 
-            <TouchableOpacity
-                style={previewStyles.editButton}
-                onPress={() => onEdit("common")}
-            >
-                <Text style={previewStyles.editText}>
-                    ✏ Edit Common Details
-                </Text>
-            </TouchableOpacity>
+            {!readOnly && (
+                <TouchableOpacity
+                    style={previewStyles.editButton}
+                    onPress={() => onEdit("common")}
+                >
+                    <Text style={previewStyles.editText}>
+                        ✏ Edit Common Details
+                    </Text>
+                </TouchableOpacity>
+            )}
 
             {selectedTypes.includes("ase") && (
                 <ASEPreview
                     data={inspectionASE}
                     onEdit={() => onEdit("ase")}
+                    readOnly={readOnly}
                 />
             )}
 
@@ -225,6 +290,7 @@ export default function PreviewForm({
                 <ContractPreview
                     data={inspectionContract}
                     onEdit={() => onEdit("contract")}
+                    readOnly={readOnly}
                 />
             )}
 
@@ -232,25 +298,27 @@ export default function PreviewForm({
                 <MWPreview
                     data={inspectionMW}
                     onEdit={() => onEdit("minimumwage")}
+                    readOnly={readOnly}
                 />
             )}
-
-            <TouchableOpacity
-                style={[
-                    previewStyles.submitButton,
-                    loading && { opacity: 0.7 },
-                ]}
-                onPress={onSubmit}
-                disabled={loading}
-            >
-                {loading ? (
-                    <ActivityIndicator color="#fff" />
-                ) : (
-                    <Text style={previewStyles.submitText}>
-                        Submit Inspection
-                    </Text>
-                )}
-            </TouchableOpacity>
+            {!readOnly && (
+                <TouchableOpacity
+                    style={[
+                        previewStyles.submitButton,
+                        loading && { opacity: 0.7 },
+                    ]}
+                    onPress={onSubmit}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={previewStyles.submitText}>
+                            Submit Inspection
+                        </Text>
+                    )}
+                </TouchableOpacity>
+            )}
         </ScrollView>
     );
 }
@@ -276,14 +344,14 @@ function Row({ label, value, valueColor }: any) {
                     valueColor && { color: valueColor, fontWeight: "700" },
                 ]}
             >
-                {value || "-"}
+                {value === null || value === undefined || value === "" ? "-" : String(value)}
             </Text>
         </View>
     );
 }
 
 // ─── ASE Preview ───────────────────────────────────────────────
-function ASEPreview({ data, onEdit }: any) {
+function ASEPreview({ data, onEdit, readOnly = false }: any) {
     // ── Establishment / Employer Details ──
     const establishmentRows = [
         { label: "Name and address of Employer / Proprietor / Managing Director / Partner / Manager / Contractor", value: data?.name_address_of_employer },
@@ -422,10 +490,11 @@ function ASEPreview({ data, onEdit }: any) {
             {/* Remarks */}
             <Text style={previewStyles.subSectionTitle}>Remarks</Text>
             <Text style={previewStyles.remarksText}>{data?.additional_remarks || "-"}</Text>
-
-            <TouchableOpacity style={previewStyles.editButton} onPress={onEdit}>
-                <Text style={previewStyles.editText}>✏ Edit ASE</Text>
-            </TouchableOpacity>
+            {!readOnly && (
+                <TouchableOpacity style={previewStyles.editButton} onPress={onEdit}>
+                    <Text style={previewStyles.editText}>✏ Edit ASE</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
@@ -472,7 +541,7 @@ function renderWorkerTable(data: any, prefix: string, showApprentice = false) {
 }
 
 // ─── Contract Labour Preview ─────────────────────────────────
-function ContractPreview({ data, onEdit }: any) {
+function ContractPreview({ data, onEdit, readOnly = false }: any) {
     // Workplace Safety
     const safetyRows = [
         { label: "Ensuring proper cleanliness in the workplace", value: data?.cleanliness_workplace_contract },
@@ -552,9 +621,11 @@ function ContractPreview({ data, onEdit }: any) {
                             <Row
                                 label="Age Proof"
                                 value={
-                                    ado.age_proof
+                                    ado.age_proof_name ||
+                                    (typeof ado.age_proof === "string"
                                         ? ado.age_proof.split("/").pop()
-                                        : "Not Uploaded"
+                                        : ado.age_proof?.name) ||
+                                    "Not Uploaded"
                                 }
                             />
                         </View>
@@ -582,15 +653,20 @@ function ContractPreview({ data, onEdit }: any) {
             <Text style={previewStyles.subSectionTitle}>Additional Remarks</Text>
             <Text style={previewStyles.remarksText}>{data?.additional_remarks2 || "-"}</Text>
 
-            <TouchableOpacity style={previewStyles.editButton} onPress={onEdit}>
-                <Text style={previewStyles.editText}>✏ Edit Contract Labour</Text>
-            </TouchableOpacity>
+            {!readOnly && (
+                <TouchableOpacity
+                    style={previewStyles.editButton}
+                    onPress={onEdit}
+                >
+                    <Text style={previewStyles.editText}>✏ Edit Contract Labour</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
 
 // ─── Minimum Wage Preview ────────────────────────────────────
-function MWPreview({ data, onEdit }: any) {
+function MWPreview({ data, onEdit, readOnly = false }: any) {
     // Minimum Wage Observations
     const mwObsRows = [
         { label: "1. Issue of appointment letters", value: data?.issue_of_appointment_letters_mw },
@@ -756,9 +832,14 @@ function MWPreview({ data, onEdit }: any) {
             <Text style={previewStyles.subSectionTitle}>Additional Remarks</Text>
             <Text style={previewStyles.remarksText}>{data?.additional_remarks3 || "-"}</Text>
 
-            <TouchableOpacity style={previewStyles.editButton} onPress={onEdit}>
-                <Text style={previewStyles.editText}>✏ Edit Minimum Wage</Text>
-            </TouchableOpacity>
+            {!readOnly && (
+                <TouchableOpacity
+                    style={previewStyles.editButton}
+                    onPress={onEdit}
+                >
+                    <Text style={previewStyles.editText}>✏ Edit Minimum Wage</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 }

@@ -1,4 +1,3 @@
-import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,9 +13,10 @@ interface Props {
   visible: boolean;
   mobileNumber: string;
   onClose: () => void;
-  onVerify: (otp: string) => void;
+  onVerify: (otp: string) => void | Promise<void>;
   onResend?: () => void;
   loading?: boolean;
+  requestingOtp?: boolean;
 }
 
 export default function OtpModal({
@@ -26,14 +26,15 @@ export default function OtpModal({
   onVerify,
   onResend,
   loading = false,
+  requestingOtp = false,
 }: Props) {
-  const { username, fullname, phone, role } = useLocalSearchParams();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState("");
 
   const inputs = useRef<TextInput[]>([]);
+  const verificationInProgress = useRef(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -42,14 +43,12 @@ export default function OtpModal({
     setTimer(60);
     setCanResend(false);
     setError("");
-
-    setTimeout(() => {
-      inputs.current[0]?.focus();
-    }, 200);
   }, [visible]);
 
+  // Do not start the resend countdown while the inspection is being saved
+  // or while the initial OTP request is still in progress.
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || requestingOtp) return;
 
     if (timer <= 0) {
       setCanResend(true);
@@ -57,35 +56,45 @@ export default function OtpModal({
     }
 
     const interval = setInterval(() => {
-      setTimer((t) => t - 1);
+      setTimer((current) => Math.max(0, current - 1));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer, visible]);
+  }, [timer, visible, requestingOtp]);
+
+  useEffect(() => {
+    if (!visible || requestingOtp || loading) return;
+
+    const focusTimer = setTimeout(() => {
+      inputs.current[0]?.focus();
+    }, 200);
+
+    return () => clearTimeout(focusTimer);
+  }, [visible, requestingOtp, loading]);
 
   const handleChange = (text: string, index: number) => {
-    if (text.length > 1) {
-      const digits = text.slice(0, 6).split("");
+    const digits = text.replace(/\D/g, "");
+
+    if (digits.length > 1) {
+      const pastedDigits = digits.slice(0, 6).split("");
       const next = ["", "", "", "", "", ""];
 
-      digits.forEach((d, i) => {
-        next[i] = d;
+      pastedDigits.forEach((digit, i) => {
+        next[i] = digit;
       });
 
       setOtp(next);
-
-      if (digits.length === 6) {
-        onVerify(next.join(""));
-      }
-
+      setError("");
+      inputs.current[Math.min(pastedDigits.length, 5)]?.focus();
       return;
     }
 
-    const arr = [...otp];
-    arr[index] = text;
-    setOtp(arr);
+    const next = [...otp];
+    next[index] = digits;
+    setOtp(next);
+    setError("");
 
-    if (text && index < 5) {
+    if (digits && index < 5) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -96,7 +105,7 @@ export default function OtpModal({
     }
   };
 
-  const verify = () => {
+  const verify = async () => {
     const code = otp.join("");
 
     if (code.length !== 6) {
@@ -104,18 +113,27 @@ export default function OtpModal({
       return;
     }
 
+    if (verificationInProgress.current || loading || requestingOtp) {
+      return;
+    }
+
+    verificationInProgress.current = true;
     setError("");
-    onVerify(code);
+
+    try {
+      await onVerify(code);
+    } finally {
+      verificationInProgress.current = false;
+    }
   };
 
   const resend = () => {
+    if (loading || requestingOtp || !canResend) return;
+
     setOtp(["", "", "", "", "", ""]);
     setTimer(60);
     setCanResend(false);
     setError("");
-
-    inputs.current[0]?.focus();
-
     onResend?.();
   };
 
@@ -129,107 +147,96 @@ export default function OtpModal({
       transparent
       animationType="fade"
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (!loading && !requestingOtp) onClose();
+      }}
     >
       <View style={styles.overlay}>
-
         <View style={styles.modal}>
-
           <View style={styles.header}>
-
-            <Text style={styles.headerTitle}>
-              🔐 OTP Verification
-            </Text>
-
+            <Text style={styles.headerTitle}>🔐 OTP Verification</Text>
             <TouchableOpacity
               onPress={onClose}
-              disabled={loading}
+              disabled={loading || requestingOtp}
             >
               <Text style={styles.close}>✕</Text>
             </TouchableOpacity>
-
           </View>
 
           <Text style={styles.info}>
             We have sent you One Time Password to your registered Mobile Number
           </Text>
 
-          <Text style={styles.mobile}>
-            {masked}
-          </Text>
+          <Text style={styles.mobile}>{masked}</Text>
+
+          {requestingOtp && (
+            <View style={styles.progress}>
+              <ActivityIndicator size="small" color="#1976D2" />
+              <Text style={styles.progressText}>
+                Preparing inspection and sending OTP. Please wait...
+              </Text>
+            </View>
+          )}
 
           <View style={styles.otpRow}>
-
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref: any) => (inputs.current[index] = ref)}
+                ref={(ref) => {
+                  if (ref) inputs.current[index] = ref;
+                }}
                 value={digit}
                 keyboardType="number-pad"
                 maxLength={1}
                 style={styles.input}
-                onChangeText={(t) => handleChange(t, index)}
+                onChangeText={(value) => handleChange(value, index)}
                 onKeyPress={({ nativeEvent }) => {
                   if (nativeEvent.key === "Backspace") {
                     handleBackspace(index);
                   }
                 }}
+                editable={!loading && !requestingOtp}
               />
             ))}
-
           </View>
 
-          {!!error && (
-            <Text style={styles.error}>
-              {error}
-            </Text>
-          )}
+          {!!error && <Text style={styles.error}>{error}</Text>}
 
           <TouchableOpacity
             style={[
               styles.verifyButton,
-              loading && { opacity: 0.6 },
+              (loading || requestingOtp) && styles.disabledButton,
             ]}
             onPress={verify}
-            disabled={loading}
+            disabled={loading || requestingOtp}
           >
-            {loading ? (
+            {loading || requestingOtp ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.verifyText}>
-                ✓ Verify OTP
-              </Text>
+              <Text style={styles.verifyText}>✓ Verify OTP</Text>
             )}
           </TouchableOpacity>
 
           {!canResend ? (
             <Text style={styles.timer}>
-              Resend OTP in{" "}
-              <Text style={styles.green}>
-                {timer}
-              </Text>{" "}
-              sec
+              Resend OTP in <Text style={styles.green}>{timer}</Text> sec
             </Text>
           ) : (
             <TouchableOpacity
               style={styles.resendButton}
               onPress={resend}
+              disabled={loading || requestingOtp}
             >
-              <Text style={styles.resendText}>
-                🔄 Resend OTP
-              </Text>
+              <Text style={styles.resendText}>🔄 Resend OTP</Text>
             </TouchableOpacity>
           )}
-
         </View>
-
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,.45)",
@@ -237,14 +244,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-
   modal: {
     width: "100%",
     backgroundColor: "#fff",
     borderRadius: 14,
     overflow: "hidden",
   },
-
   header: {
     backgroundColor: "#1976D2",
     flexDirection: "row",
@@ -252,19 +257,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
   },
-
   headerTitle: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
   },
-
   close: {
     color: "#fff",
     fontSize: 24,
     fontWeight: "700",
   },
-
   info: {
     marginTop: 25,
     textAlign: "center",
@@ -272,7 +274,6 @@ const styles = StyleSheet.create({
     color: "#555",
     paddingHorizontal: 20,
   },
-
   mobile: {
     marginTop: 10,
     textAlign: "center",
@@ -280,14 +281,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 18,
   },
-
+  progress: {
+    marginTop: 15,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  progressText: {
+    color: "#1976D2",
+    fontWeight: "600",
+    flexShrink: 1,
+    textAlign: "center",
+  },
   otpRow: {
     flexDirection: "row",
     justifyContent: "space-evenly",
     marginTop: 30,
     marginHorizontal: 20,
   },
-
   input: {
     width: 46,
     height: 56,
@@ -298,14 +311,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
   },
-
   error: {
     marginTop: 15,
     color: "#D32F2F",
     textAlign: "center",
     fontWeight: "600",
   },
-
   verifyButton: {
     marginTop: 25,
     marginHorizontal: 35,
@@ -314,24 +325,23 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
   },
-
+  disabledButton: {
+    opacity: 0.6,
+  },
   verifyText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
   },
-
   timer: {
     marginVertical: 20,
     textAlign: "center",
     color: "#555",
   },
-
   green: {
     color: "#2E7D32",
     fontWeight: "700",
   },
-
   resendButton: {
     alignSelf: "center",
     marginVertical: 20,
@@ -341,10 +351,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-
   resendText: {
     color: "#1976D2",
     fontWeight: "700",
   },
-
 });

@@ -1,5 +1,6 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from "expo-file-system/legacy";
 import React, { useState } from "react";
 import {
   Alert,
@@ -13,6 +14,31 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+
+const persistPickedDocument = async (file: any) => {
+  const root = FileSystem.documentDirectory;
+  if (!root) throw new Error("App document storage is unavailable.");
+
+  const directory = `${root}cis_offline/inspection_attachments/`;
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+
+  const safeName = String(file.name || "attachment")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  const destination = `${directory}${Date.now()}_${safeName}`;
+
+  await FileSystem.copyAsync({ from: file.uri, to: destination });
+  const info = await FileSystem.getInfoAsync(destination);
+  if (!info.exists || !info.size) {
+    throw new Error("The selected document could not be saved on this device.");
+  }
+
+  return {
+    uri: destination,
+    name: file.name || safeName,
+    type: file.mimeType || "application/octet-stream",
+    size: file.size,
+  };
+};
 
 // ===== Reusable Components (same as ASEForm) =====
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -337,7 +363,7 @@ export default function MWForm({
   );
 
   // ===== SECTION 2: Adolescent Worker Details =====
-  const [adolescentDetails, setAdolescentDetails] = useState(
+  const [adolescentDetails, setAdolescentDetails] = useState<any[]>(
     inspectionMW?.adolescent_details_minimumwage || [
       {
         labour_office_intimation: "",
@@ -399,20 +425,14 @@ export default function MWForm({
       if (!result.canceled) {
         const file = result.assets[0];
 
+        const savedFile = await persistPickedDocument(file);
         setAdolescentDetails(prev => {
           const updated = [...prev];
-
           updated[index] = {
             ...updated[index],
-            age_proof: {
-              uri: file.uri,
-              name: file.name,
-              type: file.mimeType || "application/octet-stream",
-              size: file.size,
-            },
+            age_proof: savedFile,
             age_proof_name: file.name,
           };
-
           return updated;
         });
 
@@ -535,7 +555,7 @@ export default function MWForm({
   );
 
   // ===== SECTION 7: Individual Workers =====
-  const [individualWorkers, setIndividualWorkers] = useState(
+  const [individualWorkers, setIndividualWorkers] = useState<any[]>(
     inspectionMW?.workers_detail_mw || [
       { name: "", designation: "", doj: "", wages: "", payslip: null, payslip_name: "" },
     ]
@@ -569,13 +589,16 @@ export default function MWForm({
       });
       if (result.canceled === false) {
         const file = result.assets[0];
-        updateWorker(index, 'payslip', {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType,
-          size: file.size,
+        const savedFile = await persistPickedDocument(file);
+        setIndividualWorkers(prev => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            payslip: savedFile,
+            payslip_name: file.name,
+          };
+          return updated;
         });
-        updateWorker(index, 'payslip_name', file.name);
       }
     } catch (err) {
       Alert.alert('Error', 'Failed to pick document');
@@ -593,7 +616,7 @@ export default function MWForm({
   };
 
   // ===== SECTION 8: Directions =====
-  const [directions, setDirections] = useState(
+  const [directions, setDirections] = useState<any[]>(
     inspectionMW?.minimumwage_directions || [""]
   );
 

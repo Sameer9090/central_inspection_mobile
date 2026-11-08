@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNotification } from "../context/NotificationContext";
-
+import { saveOfflineCredentials } from "../services/offlineAuth";
 import { API } from "../services/api";
 
 export default function OtpScreen() {
@@ -108,18 +108,80 @@ export default function OtpScreen() {
         username,
         otp: otpString,
       });
-
+      // console.log("OTP VERIFICATION RESPONSE:", response.data);
+      // console.log("TOKEN RECEIVED:", !!response.data.token);
+      // console.log("USER RECEIVED:", !!response.data.user);
       if (response.data.success) {
+        console.log("OTP VERIFIED SUCCESSFULLY");
+
+        // console.log("TOKEN RECEIVED:", !!response.data.token);
+        // console.log("USER RECEIVED:", !!response.data.user);
+
+        if (!response.data.token || !response.data.user) {
+          console.log("Missing token or user in OTP response");
+          Alert.alert(
+            "Login Error",
+            "Authentication token or user information was not received."
+          );
+          return;
+        }
+
+        // Save the normal online authentication session.
         await AsyncStorage.setItem("token", response.data.token);
         await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Provision offline authentication after successful OTP verification.
+        try {
+          const offlineUsername = Array.isArray(username)
+            ? username[0]
+            : username;
+
+          if (!offlineUsername) {
+            throw new Error("Username is missing. Cannot configure offline login.");
+          }
+
+          await saveOfflineCredentials(
+            offlineUsername,
+            response.data.user
+          );
+
+          console.log("OFFLINE AUTH: Setup completed successfully.");
+        } catch (offlineError) {
+          console.error("OFFLINE AUTH SETUP FAILED:", offlineError);
+
+          Alert.alert(
+            "Offline Login Setup",
+            "Your online login was successful, but offline login could not be configured on this device. You can continue using the app online."
+          );
+        }
+
+        console.log(
+          "TOKEN SAVED:",
+          !!(await AsyncStorage.getItem("token"))
+        );
+
+        console.log(
+          "USER SAVED:",
+          !!(await AsyncStorage.getItem("user"))
+        );
+
+        // Push notification registration
         try {
           await registerForPushNotificationsAsync();
         } catch (e) {
           console.log("Push registration failed:", e);
         }
-        await refreshUnreadCount();
+
+        // Refresh unread count without blocking login
+        try {
+          await refreshUnreadCount();
+        } catch (e) {
+          console.log("Unread count refresh skipped:", e);
+        }
+
         // Role-based routing
         const userRole = response.data.user?.role_id;
+
         if (userRole === 1) {
           router.replace("/admin-dashboard");
         } else {

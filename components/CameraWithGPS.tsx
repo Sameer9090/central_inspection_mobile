@@ -79,10 +79,38 @@ export default function CameraWithGPS({ onPhotoCaptured, onCancel }: CameraWithG
     setGpsAcquiring(true);
 
     try {
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.BestForNavigation,
+      let location = await Location.getLastKnownPositionAsync({
+        maxAge: 120000,
+        requiredAccuracy: 100,
       });
+
+      if (!location) {
+        console.log("No recent location found. Requesting current GPS location...");
+
+        location = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("GPS_TIMEOUT")),
+              30000
+            )
+          ),
+        ]);
+      }
+
+      if (
+        !location ||
+        !Number.isFinite(location.coords.latitude) ||
+        !Number.isFinite(location.coords.longitude)
+      ) {
+        throw new Error("GPS coordinates unavailable");
+      }
+
       const { latitude, longitude } = location.coords;
+
+      console.log("GPS coordinates acquired:", latitude, longitude);
 
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.9,
@@ -116,8 +144,16 @@ export default function CameraWithGPS({ onPhotoCaptured, onCancel }: CameraWithG
 
       setGpsAcquiring(false);
       setCapturing(false);
+      console.log("CAMERA SENDING GPS:", {
+        latitude,
+        longitude,
+      });
       onPhotoCaptured(fileUri, { latitude, longitude });
-
+      console.log("CAMERA GPS RESULT:", {
+        latitude,
+        longitude,
+        fileUri,
+      });
     } catch (error: any) {
       setGpsAcquiring(false);
       setCapturing(false);

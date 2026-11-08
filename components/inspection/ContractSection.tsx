@@ -58,24 +58,32 @@ const CONTRACT_PROVISIONS = [
   { key: 'whether_wage_slips_formxix_issued', label: 'Whether wage slips in Form XIX issued before wage disbursement [Section 33(c)]' },
 ];
 
-export default function ContractSection({ data, onChange, onSave, onBack, saving }) {
+type ContractSectionProps = {
+  data: any;
+  onChange: React.Dispatch<React.SetStateAction<any>>;
+  onSave: () => void;
+  onBack: () => void;
+  saving: boolean;
+};
+
+export default function ContractSection({ data, onChange, onSave, onBack, saving }: ContractSectionProps) {
   const [showAdolescent, setShowAdolescent] = useState(data.is_adolescent_employed_contract === 'Yes');
 
-  const updateField = (field, value) => {
-    onChange(prev => ({ ...prev, [field]: value }));
+  const updateField = (field: string, value: any) => {
+    onChange((prev: any) => ({ ...prev, [field]: value }));
     if (field === 'is_adolescent_employed_contract') {
       setShowAdolescent(value === 'Yes');
     }
   };
 
-  const toggleCheckbox = (field) => {
+  const toggleCheckbox = (field: string) => {
     const current = data[field] === 'Yes' ? 'No' : 'Yes';
     updateField(field, current);
   };
 
   const addAdolescent = () => {
     const current = data.adolescent_details_contract || [];
-    onChange(prev => ({
+    onChange((prev: any) => ({
       ...prev,
       adolescent_details_contract: [
         ...current,
@@ -84,33 +92,33 @@ export default function ContractSection({ data, onChange, onSave, onBack, saving
     }));
   };
 
-  const removeAdolescent = (index) => {
+  const removeAdolescent = (index: number) => {
     const current = [...data.adolescent_details_contract];
     current.splice(index, 1);
-    onChange(prev => ({ ...prev, adolescent_details_contract: current }));
+    onChange((prev: any) => ({ ...prev, adolescent_details_contract: current }));
   };
 
-  const updateAdolescent = (index, field, value) => {
+  const updateAdolescent = (index: number, field: string, value: any) => {
     const current = [...data.adolescent_details_contract];
     current[index] = { ...current[index], [field]: value };
-    onChange(prev => ({ ...prev, adolescent_details_contract: current }));
+    onChange((prev: any) => ({ ...prev, adolescent_details_contract: current }));
   };
 
   const addDirection = () => {
     const current = data.contract_directions || [''];
-    onChange(prev => ({ ...prev, contract_directions: [...current, ''] }));
+    onChange((prev: any) => ({ ...prev, contract_directions: [...current, ''] }));
   };
 
-  const removeDirection = (index) => {
+  const removeDirection = (index: number) => {
     const current = [...data.contract_directions];
     current.splice(index, 1);
-    onChange(prev => ({ ...prev, contract_directions: current }));
+    onChange((prev: any) => ({ ...prev, contract_directions: current }));
   };
 
-  const updateDirection = (index, value) => {
+  const updateDirection = (index: number, value: string) => {
     const current = [...data.contract_directions];
     current[index] = value;
-    onChange(prev => ({ ...prev, contract_directions: current }));
+    onChange((prev: any) => ({ ...prev, contract_directions: current }));
   };
 
   return (
@@ -155,7 +163,7 @@ export default function ContractSection({ data, onChange, onSave, onBack, saving
       {showAdolescent && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Adolescent Worker Details</Text>
-          {(data.adolescent_details_contract || []).map((ado, index) => (
+          {((data.adolescent_details_contract || []) as any[]).map((ado: any, index: number) => (
             <View key={index} style={styles.adolescentBlock}>
               <View style={styles.adoHeader}>
                 <Text style={styles.adoTitle}>Adolescent Entry #{index + 1}</Text>
@@ -235,7 +243,7 @@ export default function ContractSection({ data, onChange, onSave, onBack, saving
       {/* Directions */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Directions <Text style={styles.required}>*</Text></Text>
-        {(data.contract_directions || ['']).map((dir, index) => (
+        {((data.contract_directions || ['']) as string[]).map((dir: string, index: number) => (
           <View key={index} style={styles.directionRow}>
             <TextInput style={[styles.input, styles.directionInput]} value={dir} onChangeText={(v) => updateDirection(index, v)} placeholder={`Direction ${index + 1}`} />
             {index === 0 ? (

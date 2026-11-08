@@ -135,8 +135,9 @@ export default function UnsuccessfulInspectionVisitsScreen() {
                 return;
             }
 
-            const photoUrl = `${BASE_URL}/api/inspection/visit-failures/${id}/photo`;
-
+            const photoUrl = `${BASE_URL}/inspection/visit-failures/${id}/photo`;
+            console.log("BASE URL:", BASE_URL);
+            console.log("PHOTO URL:", photoUrl);
             const localPath = `${FileSystem.cacheDirectory}inspection_photo_${id}.jpg`;
 
             setPhotoModalVisible(true);

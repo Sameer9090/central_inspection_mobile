@@ -1,4 +1,5 @@
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import React, { useState } from "react";
 import {
   Alert,
@@ -12,6 +13,31 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const persistPickedDocument = async (file: any) => {
+  const root = FileSystem.documentDirectory;
+  if (!root) throw new Error("App document storage is unavailable.");
+
+  const directory = `${root}cis_offline/inspection_attachments/`;
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+
+  const safeName = String(file.name || "attachment")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  const destination = `${directory}${Date.now()}_${safeName}`;
+
+  await FileSystem.copyAsync({ from: file.uri, to: destination });
+  const info = await FileSystem.getInfoAsync(destination);
+  if (!info.exists || !info.size) {
+    throw new Error("The selected document could not be saved on this device.");
+  }
+
+  return {
+    uri: destination,
+    name: file.name || safeName,
+    type: file.mimeType || "application/octet-stream",
+    size: file.size,
+  };
+};
 
 // ============================================
 // REUSABLE COMPONENTS
@@ -240,7 +266,7 @@ export default function ContractLabourForm({
   );
 
   // ===== SECTION 3: Adolescent Worker Details =====
-  const [adolescentDetails, setAdolescentDetails] = useState(
+  const [adolescentDetails, setAdolescentDetails] = useState<any[]>(
     inspectionContract?.adolescent_details_contract || [
       {
         labour_office_intimation: "",
@@ -302,20 +328,14 @@ export default function ContractLabourForm({
       if (!result.canceled) {
         const file = result.assets[0];
 
+        const savedFile = await persistPickedDocument(file);
         setAdolescentDetails(prev => {
           const updated = [...prev];
-
           updated[index] = {
             ...updated[index],
-            age_proof: {
-              uri: file.uri,
-              name: file.name,
-              type: file.mimeType || "application/octet-stream",
-              size: file.size,
-            },
+            age_proof: savedFile,
             age_proof_name: file.name,
           };
-
           return updated;
         });
 
@@ -395,7 +415,7 @@ export default function ContractLabourForm({
   );
 
   // ===== SECTION 5: Directions =====
-  const [directions, setDirections] = useState(
+  const [directions, setDirections] = useState<any[]>(
     inspectionContract?.contract_directions || [""]
   );
 

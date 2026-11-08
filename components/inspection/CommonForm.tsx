@@ -1,7 +1,8 @@
-import { API, BASE_URL } from "@/services/api";
+import { API } from "@/services/api";
 import { extractGPSFromImage } from "@/utils/exifLocation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import {
@@ -17,7 +18,6 @@ import {
   View,
 } from "react-native";
 import CameraWithGPS from "../CameraWithGPS";
-
 export default function CommonForm({
   application,
   common,
@@ -44,7 +44,13 @@ export default function CommonForm({
   const [photoPath, setPhotoPath] = useState(
     common?.common_data?.files?.est_photo || "",
   );
+  const [photoLocalPath, setPhotoLocalPath] = useState(
+    common?.common_data?.files?.est_photo_local || "",
+  );
   const [photoPreview, setPhotoPreview] = useState("");
+  const [emplSignLocalPath, setEmplSignLocalPath] = useState(
+    common?.common_data?.files?.empl_sign_local || "",
+  );
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [apiError, setApiError] = useState<string>("");
@@ -92,77 +98,224 @@ export default function CommonForm({
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingSign, setUploadingSign] = useState(false);
-  const [inspectorSignPath] = useState(
+  const [inspectorSignPath, setInspectorSignPath] = useState(
     common?.common_data?.files?.inspector_sign || user?.signature || "",
   );
 
   const [gpsStatus, setGpsStatus] = useState<"idle" | "waiting" | "success" | "failed" | "no_gps_in_photo">("idle");
 
   // ─── Load existing previews on mount ───
+
   useEffect(() => {
-    const loadData = async () => {
-      // Load establishment photo
-      if (photoPath) {
-        if (photoPath.startsWith("temp/")) {
-          setPhotoPreview(`${BASE_URL}/storage/${photoPath}`);
-        } else {
-          try {
-            const token = await AsyncStorage.getItem("token");
-            const res = await API.get("/private-file-base64", {
-              params: { path: photoPath },
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            setPhotoPreview(`data:${res.data.mime};base64,${res.data.base64}`);
-          } catch (e) {
-            console.log("Establishment photo load failed");
-          }
-        }
+    let isActive = true;
+
+    const loadImagePreview = async (
+      path: string,
+      setPreview: (value: string) => void,
+      label: string
+    ) => {
+      if (!path) {
+        return;
       }
 
-      // Load employer signature
-      if (emplSignPath) {
-        if (emplSignPath.startsWith("temp/")) {
-          setEmplSignPreview(`${BASE_URL}/storage/${emplSignPath}`);
-        } else {
-          try {
-            const token = await AsyncStorage.getItem("token");
-            const res = await API.get("/private-file-base64", {
-              params: { path: emplSignPath },
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            setEmplSignPreview(`data:${res.data.mime};base64,${res.data.base64}`);
-          } catch (e) {
-            console.log("Employer signature load failed");
-          }
+      try {
+        // Locally saved image on the device
+        if (
+          path.startsWith("file://") ||
+          path.startsWith("content://")
+        ) {
+          if (isActive) setPreview(path);
+          return;
         }
-      }
 
-      // ─── NEW: Restore GPS from common.common_data.gps_location ───
-      const gps = common?.common_data?.gps_location;
-      if (gps?.latitude && gps?.longitude) {
-        setExtractedGps({
-          latitude: parseFloat(gps.latitude),
-          longitude: parseFloat(gps.longitude),
+        // Temporarily uploaded image
+        if (path.startsWith("temp/")) {
+          const serverBaseUrl = (API.defaults.baseURL || "")
+            .replace(/\/api\/?$/, "");
+
+          const imageUrl = `${serverBaseUrl}/storage/${path}`;
+
+          console.log(`${label} IMAGE URL:`, imageUrl);
+
+          if (isActive) {
+            setPreview(imageUrl);
+          }
+          return;
+        }
+
+        // Existing private server-side image
+        const token = await AsyncStorage.getItem("token");
+
+        const res = await API.get("/private-file-base64", {
+          params: { path },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
-        setGpsStatus("success");
+
+        if (isActive) {
+          setPreview(
+            `data:${res.data.mime};base64,${res.data.base64}`
+          );
+        }
+      } catch (error) {
+        console.log(`${label} load failed:`, error);
+      }
+    };
+
+    const loadData = async () => {
+      const serverPhotoPath =
+        common?.common_data?.files?.est_photo;
+      console.log("ESTABLISHMENT PHOTO RESTORE CHECK:", {
+        serverPhotoPath,
+        currentPhotoPath: photoPath,
+        currentPhotoPreview: photoPreview,
+        employerSignaturePath:
+          common?.common_data?.files?.empl_sign,
+      });
+      const serverSignPath =
+        common?.common_data?.files?.empl_sign;
+
+      // Restore updated paths received from the parent.
+      if (serverPhotoPath) {
+        setPhotoPath(serverPhotoPath);
+        console.log("ESTABLISHMENT PHOTO PATH FOUND:", serverPhotoPath);
+        await loadImagePreview(
+          serverPhotoPath,
+          setPhotoPreview,
+          "Establishment photo"
+        );
+      }
+
+      if (serverSignPath) {
+        setEmplSignPath(serverSignPath);
+
+        await loadImagePreview(
+          serverSignPath,
+          setEmplSignPreview,
+          "Employer signature"
+        );
+      }
+
+      // Restore GPS coordinates.
+      const gps = common?.common_data?.gps_location;
+
+      if (
+        gps?.latitude != null &&
+        gps?.longitude != null
+      ) {
+        const latitude = Number(gps.latitude);
+        const longitude = Number(gps.longitude);
+
+        if (
+          Number.isFinite(latitude) &&
+          Number.isFinite(longitude) &&
+          isActive
+        ) {
+          setExtractedGps({
+            latitude,
+            longitude,
+          });
+
+          setGpsStatus("success");
+        }
       }
     };
 
     loadData();
-  }, []);
 
-  const loadPrivateFile = async (path: string, setPreview: (uri: string) => void) => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const res = await API.get("/private-file-base64", {
-        params: { path },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setPreview(`data:${res.data.mime};base64,${res.data.base64}`);
-    } catch (e) {
-      console.log("File load failed");
+    return () => {
+      isActive = false;
+    };
+  }, [
+    common?.common_data?.files?.est_photo,
+    common?.common_data?.files?.empl_sign,
+    common?.common_data?.gps_location?.latitude,
+    common?.common_data?.gps_location?.longitude,
+  ]);
+
+  
+    
+
+  const ensureInspectorSignatureLocal = async (): Promise<string> => {
+    // Reuse the signature if it is already stored locally.
+    if (
+      inspectorSignPath.startsWith("file://") ||
+      inspectorSignPath.startsWith("content://")
+    ) {
+      const fileInfo = await FileSystem.getInfoAsync(inspectorSignPath);
+
+      if (fileInfo.exists) {
+        return inspectorSignPath;
+      }
     }
+
+    let base64Data = user?.signature_base64;
+
+    // If base64 is unavailable, try downloading the existing server signature.
+    // If offline, retain its server-side path; the server already owns this file.
+    if (!base64Data && user?.signature) {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        const response = await API.get("/private-file-base64", {
+          params: { path: user.signature },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        base64Data = response.data?.base64;
+      } catch (downloadError) {
+        console.log("Inspector signature download unavailable; retaining server path.", downloadError);
+        return user.signature;
+      }
+    }
+
+    if (!base64Data) {
+      if (user?.signature) return user.signature;
+      throw new Error("Inspector signature is not available.");
+    }
+
+    // Remove the data URI prefix if it is already present.
+    base64Data = base64Data.replace(
+      /^data:image\/[a-zA-Z0-9.+-]+;base64,/,
+      ""
+    );
+
+    const directory = `${FileSystem.documentDirectory}cis_offline/`;
+
+    await FileSystem.makeDirectoryAsync(directory, {
+      intermediates: true,
+    });
+
+    const localPath = `${directory}inspector_signature.png`;
+
+    await FileSystem.writeAsStringAsync(localPath, base64Data, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const fileInfo = await FileSystem.getInfoAsync(localPath);
+
+    if (!fileInfo.exists || !fileInfo.size) {
+      throw new Error("Unable to save inspector signature locally.");
+    }
+
+    setInspectorSignPath(localPath);
+
+    return localPath;
   };
+
+  
+
+  // const loadPrivateFile = async (path: string, setPreview: (uri: string) => void) => {
+  //   try {
+  //     const token = await AsyncStorage.getItem("token");
+  //     const res = await API.get("/private-file-base64", {
+  //       params: { path },
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     setPreview(`data:${res.data.mime};base64,${res.data.base64}`);
+  //   } catch (e) {
+  //     console.log("File load failed");
+  //   }
+  // };
 
   // ─── Upload helper ───
   const uploadToTemp = async (uri: string): Promise<string> => {
@@ -184,72 +337,111 @@ export default function CommonForm({
     return res.data.data.path;
   };
 
+
+
+  const saveFileLocally = async (
+    uri: string,
+    fileName: string
+  ): Promise<string> => {
+    const directory = `${FileSystem.documentDirectory}cis_offline/`;
+
+    await FileSystem.makeDirectoryAsync(directory, {
+      intermediates: true,
+    });
+
+    const destination = `${directory}${fileName}`;
+
+    await FileSystem.copyAsync({
+      from: uri,
+      to: destination,
+    });
+
+    return destination;
+  };
+
   // ─── Photo captured from camera ───
-  const handlePhotoCaptured = async (photoUri: string, gpsLocation: { latitude: number; longitude: number }) => {
+
+  const handlePhotoCaptured = async (
+    photoUri: string,
+    gpsLocation: { latitude: number; longitude: number }
+  ) => {
+    console.log("COMMON FORM RECEIVED GPS:", gpsLocation);
+
     setCameraVisible(false);
     setUploadingPhoto(true);
     setGpsStatus("waiting");
 
+    let processingStage = "Reading GPS";
+
     try {
-      // Verify GPS is actually in the EXIF
+      processingStage = "Reading GPS from photo";
+
+      // Prefer photo EXIF GPS; fall back to the coordinates supplied by the camera.
       const exifGps = await extractGPSFromImage(photoUri);
 
-      if (!exifGps) {
-        Alert.alert(
-          "GPS Not Found",
-          "The captured photo does not contain GPS location data. Please ensure location services are enabled and try again.",
-          [{ text: "OK" }]
-        );
-        setGpsStatus("no_gps_in_photo");
-        setUploadingPhoto(false);
-        return;
+      const gps =
+        exifGps &&
+          Number.isFinite(exifGps.latitude) &&
+          Number.isFinite(exifGps.longitude)
+          ? { latitude: exifGps.latitude, longitude: exifGps.longitude }
+          : gpsLocation &&
+            Number.isFinite(gpsLocation.latitude) &&
+            Number.isFinite(gpsLocation.longitude)
+            ? { latitude: gpsLocation.latitude, longitude: gpsLocation.longitude }
+            : null;
+
+      if (!gps) {
+        throw new Error("GPS coordinates were not received from the camera or photo.");
       }
 
-      setExtractedGps({
-        latitude: exifGps.latitude,
-        longitude: exifGps.longitude,
-      });
+      setExtractedGps(gps);
 
-      setPhotoPreview(photoUri);
+      processingStage = "Saving photo locally";
+      const localPhotoPath = await saveFileLocally(
+        photoUri,
+        `establishment_${Date.now()}.jpg`
+      );
+
+      setPhotoPath(localPhotoPath);
+      setPhotoLocalPath(localPhotoPath);
+      setPhotoPreview(localPhotoPath);
       setGpsStatus("success");
 
-      // Get file info for better upload handling
-      const fileInfo = await fetch(photoUri);
-      const blob = await fileInfo.blob();
-      const fileExtension = blob.type.split('/')[1] || 'jpg';
+      processingStage = "Uploading photo";
+      try {
+        const formData = new FormData();
+        formData.append("file", {
+          uri: localPhotoPath,
+          type: "image/jpeg",
+          name: `establishment_photo_${Date.now()}.jpg`,
+        } as any);
 
-      // Create a proper File object with correct metadata
-      const formData = new FormData();
-      formData.append("file", {
-        uri: photoUri,
-        type: blob.type || 'image/jpeg',
-        name: `establishment_photo_${Date.now()}.${fileExtension}`,
-      } as any);
+        const token = await AsyncStorage.getItem("token");
+        const res = await API.post("/upload/temp", formData, {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 30000,
+        });
 
-      const token = await AsyncStorage.getItem("token");
+        if (!res.data?.data?.path) {
+          throw new Error("Invalid photo upload response");
+        }
 
-      // Add more debugging
-      console.log('Uploading photo:', {
-        uri: photoUri,
-        type: blob.type,
-        size: blob.size,
-        name: `establishment_photo_${Date.now()}.${fileExtension}`
-      });
-
-      const res = await API.post("/upload/temp", formData, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
-        timeout: 30000, // 30 second timeout for large files
-      });
-
-      if (res.data && res.data.data && res.data.data.path) {
         setPhotoPath(res.data.data.path);
-        console.log('Photo uploaded successfully:', res.data.data.path);
-      } else {
-        throw new Error('Invalid response from server');
+        console.log("Photo uploaded:", res.data.data.path);
+      } catch (uploadError: any) {
+        console.log(
+          "Photo upload unavailable. Keeping local photo:",
+          uploadError?.message
+        );
+        setPhotoPath(localPhotoPath);
+        Alert.alert(
+          "Photo Saved Locally",
+          "The photo and GPS information are saved on this device. Upload will be required when internet is available."
+        );
       }
 
       if (errors["inspection_photo_path"]) {
@@ -260,31 +452,19 @@ export default function CommonForm({
         });
       }
     } catch (err: any) {
-      console.error("Photo processing error:", err);
+      console.error("PHOTO PROCESSING FAILED:", {
+        stage: processingStage,
+        message: err?.message,
+        gpsLocation,
+        photoUri,
+      });
 
-      // More detailed error handling
-      let errorMessage = "Failed to process photo. Please try again.";
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error('Server response:', err.response.data);
-        console.error('Status code:', err.response.status);
-
-        if (err.response.status === 413) {
-          errorMessage = "Photo is too large. Please try taking a smaller photo.";
-        } else if (err.response.status === 415) {
-          errorMessage = "Unsupported photo format. Please try JPEG format.";
-        } else if (err.response.data && err.response.data.message) {
-          errorMessage = err.response.data.message;
-        }
-      } else if (err.request) {
-        // The request was made but no response was received
-        errorMessage = "Network error. Please check your connection and try again.";
-      }
-
-      setApiError(errorMessage);
+      setApiError(`${processingStage}: ${err?.message || "Unknown error"}`);
       setGpsStatus("failed");
-      Alert.alert("Upload Error", errorMessage);
+      Alert.alert(
+        "Photo Processing Failed",
+        `Stage: ${processingStage}\nError: ${err?.message || "Unknown error"}`
+      );
     } finally {
       setUploadingPhoto(false);
     }
@@ -293,9 +473,14 @@ export default function CommonForm({
   // ─── Signature gallery picker ───
   const handlePickSignature = async () => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Permission to access media library is required.");
+        Alert.alert(
+          "Permission Required",
+          "Permission to access media library is required."
+        );
         return;
       }
 
@@ -307,14 +492,38 @@ export default function CommonForm({
       });
 
       if (result.canceled) return;
+
       const asset = result.assets?.[0];
       if (!asset?.uri) return;
 
       setUploadingSign(true);
       setEmplSignPreview(asset.uri);
 
-      const serverPath = await uploadToTemp(asset.uri);
-      setEmplSignPath(serverPath);
+      const extension = asset.uri.split(".").pop()?.split("?")[0] || "jpg";
+      const localPath = await saveFileLocally(
+        asset.uri,
+        `employer_signature_${Date.now()}.${extension}`
+      );
+      setEmplSignLocalPath(localPath);
+
+      try {
+        // Keep a permanent local copy even when the temporary upload succeeds.
+        const serverPath = await uploadToTemp(localPath);
+
+        setEmplSignPath(serverPath);
+        console.log("Employer signature uploaded:", serverPath);
+      } catch (uploadError) {
+        console.log(
+          "Employer signature upload unavailable. Saving locally.",
+          uploadError
+        );
+
+        // Keep the already-created permanent local copy for later synchronization.
+        setEmplSignPath(localPath);
+        console.log("Employer signature saved locally:", localPath);
+      }
+
+      setApiError("");
 
       if (errors["empl_sign_path"]) {
         setErrors((prev) => {
@@ -323,9 +532,9 @@ export default function CommonForm({
           return next;
         });
       }
-    } catch (err: any) {
-      console.error("Signature upload error:", err);
-      setApiError("Signature upload failed. Please try again.");
+    } catch (err) {
+      console.error("Signature processing error:", err);
+      setApiError("Unable to save signature. Please try again.");
     } finally {
       setUploadingSign(false);
     }
@@ -348,6 +557,8 @@ export default function CommonForm({
     }
 
     try {
+      const localInspectorSignPath =
+        await ensureInspectorSignatureLocal();
       const formSelector: string[] = [];
       if (ase) formSelector.push("ase");
       if (contract) formSelector.push("contract");
@@ -372,18 +583,35 @@ export default function CommonForm({
         est_district: district,
         est_ward_no: district === "Kamrup Metropolitan" ? wardNo : "",
         panchayat: district !== "Kamrup Metropolitan" ? panchayat : "",
-        pincode: pincode,
+        est_pincode: pincode,
         submission_location: submissionLocation,
         inspection_photo_path: photoPath,
+        inspection_photo_local_path: photoLocalPath || (photoPath.startsWith("file://") ? photoPath : ""),
         empl_sign_path: emplSignPath,
-        inspector_sign_path: inspectorSignPath,
+        empl_sign_local_path: emplSignLocalPath || (emplSignPath.startsWith("file://") ? emplSignPath : ""),
+        inspector_sign_path: localInspectorSignPath,
         ubin: application?.ubin,
         latitude: extractedGps.latitude,
         longitude: extractedGps.longitude,
         gps_source: 'photo_exif',
       };
+      console.log("COMMON FORM PINCODE STATE:", pincode);
 
+      console.log("COMMON FORM PAYLOAD PIN KEYS:", {
+        est_pincode: payload.est_pincode,
+        pincode: (payload as any).pincode,
+        keys: Object.keys(payload).filter(
+          key => key.toLowerCase().includes("pin")
+        ),
+      });
+
+      console.log("COMMON FORM IMAGE PATHS BEFORE SAVE:", {
+        photoPath,
+        emplSignPath,
+        inspectorSignPath,
+      });
       await onSave(payload);
+
     } catch (error: any) {
       if (error?.response?.status === 422) {
         setErrors(error.response.data.errors || {});
@@ -671,7 +899,7 @@ export default function CommonForm({
       <TextInput
         style={[
           styles.input,
-          hasFieldError("pincode") && styles.inputError,
+          hasFieldError("est_pincode") && styles.inputError,
         ]}
         value={pincode}
         onChangeText={(text) => {
@@ -683,9 +911,9 @@ export default function CommonForm({
         maxLength={6}
       />
 
-      {getFieldError("pincode") ? (
+      {getFieldError("est_pincode") ? (
         <Text style={styles.fieldError}>
-          {getFieldError("pincode")}
+          {getFieldError("est_pincode")}
         </Text>
       ) : null}
 
@@ -722,7 +950,11 @@ export default function CommonForm({
       {user?.signature_base64 ? (
         <>
           <Image
-            source={{ uri: `data:image/png;base64,${user.signature_base64}` }}
+            source={{
+              uri: user.signature_base64.startsWith("data:")
+                ? user.signature_base64
+                : `data:image/png;base64,${user.signature_base64}`,
+            }}
             style={[styles.signatureImage, hasFieldError("inspector_sign_path") && styles.imageError]}
             resizeMode="contain"
           />

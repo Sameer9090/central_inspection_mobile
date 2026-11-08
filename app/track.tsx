@@ -1,6 +1,11 @@
 import { router } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import {
+    ArrowLeft,
+    ChevronLeft,
+    ChevronRight
+} from "lucide-react-native";
+
+import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -15,6 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
+import ScrollNavigation from "../components/ScrollNavigation";
 import ReminderModal from "../components/track/ReminderModal";
 import TrackCard from "../components/track/TrackCard";
 import { getTrackApplications } from "../services/trackService";
@@ -34,7 +40,11 @@ export default function TrackScreen() {
     const [showReminder, setShowReminder] = useState(false);
 
     const [selectedApplication, setSelectedApplication] = useState<any>(null);
+    const listRef = useRef<FlatList<any>>(null);
 
+    const [scrollY, setScrollY] = useState(0);
+    const [contentHeight, setContentHeight] = useState(0);
+    const [scrollViewHeight, setScrollViewHeight] = useState(0);
     const filteredLocations = [
         "All Submission Locations",
         ...locations.filter(location =>
@@ -44,23 +54,25 @@ export default function TrackScreen() {
 
     const loadApplications = async (
         pageNumber = 1,
-        reset = true
+        reset = true,
+        searchTerm = search,
+        location = selectedLocation
     ) => {
 
         if (loadingMore) return;
 
-        if (pageNumber > 1) {
-            setLoadingMore(true);
-        } else {
+        if (applications.length === 0 && pageNumber === 1) {
             setLoading(true);
+        } else {
+            setLoadingMore(true);
         }
 
         try {
 
             const response = await getTrackApplications(
                 pageNumber,
-                search,
-                selectedLocation
+                searchTerm,
+                location
             );
             console.log("Applications count:", response.applications.data.length);
             console.log(response.applications.data);
@@ -100,17 +112,24 @@ export default function TrackScreen() {
         }
 
     };
+
+    const goToPage = (pageNumber: number) => {
+        if (
+            pageNumber >= 1 &&
+            pageNumber <= lastPage &&
+            pageNumber !== page &&
+            !loadingMore
+        ) {
+            loadApplications(pageNumber, true);
+        }
+    };
     useEffect(() => {
         const delay = setTimeout(() => {
-            loadApplications(1, true);
+            loadApplications(1, true, search, selectedLocation);
         }, 500);
 
         return () => clearTimeout(delay);
     }, [search]);
-
-    useEffect(() => {
-        loadApplications(1, true);
-    }, []);
 
     if (loading) {
         return (
@@ -122,202 +141,284 @@ export default function TrackScreen() {
 
     return (
         <>
-        <AppHeader />
-        <SafeAreaView style={styles.container}>
-
-            <FlatList
-                data={applications}
-                keyExtractor={(item, index) =>
-                    `${item.appl_ref_no}-${index}`
-                }
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.content}
-                ListHeaderComponent={
-                    <>
+            <AppHeader />
+            <SafeAreaView style={styles.container}>
 
 
-                        <View style={styles.header}>
+                <View style={{ flex: 1, position: "relative" }}>
+                    <FlatList
+                        ref={listRef}
+                        data={applications}
+                        keyExtractor={(item, index) =>
+                            `${item.appl_ref_no}-${index}`
+                        }
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.content}
+                        ListHeaderComponent={
+                            <>
+                                <View style={styles.header}>
+                                    <TouchableOpacity
+                                        onPress={() => router.back()}
+                                        style={styles.backButton}
+                                    >
+                                        <ArrowLeft size={22} color="#2563EB" />
+                                    </TouchableOpacity>
 
-                            <TouchableOpacity
-                                onPress={() => router.back()}
-                                style={styles.backButton}
-                            >
-                                <ArrowLeft size={22} color="#2563EB" />
-                            </TouchableOpacity>
-
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.title}>Track Applications</Text>
-
-                                <Text style={styles.subtitle}>
-                                    Track and monitor application progress
-                                </Text>
-                            </View>
-
-                        </View>
-
-                        <Text style={styles.label}>Search</Text>
-
-                        <TextInput
-                            placeholder="Reference No / Officer Name"
-                            style={styles.input}
-                            value={search}
-                            onChangeText={setSearch}
-                            returnKeyType="search"
-                        />
-
-
-
-                        <Text style={styles.label}>Submission Location</Text>
-
-                        <TouchableOpacity
-                            style={styles.dropdown}
-                            onPress={() =>
-                                setShowLocationDropdown(!showLocationDropdown)
-                            }
-                        >
-                            <Text
-                                style={{
-                                    color: selectedLocation ? "#111827" : "#94A3B8",
-                                    fontWeight: selectedLocation ? "600" : "400",
-                                }}
-                            >
-                                {selectedLocation || "All Submission Locations"}
-                            </Text>
-                        </TouchableOpacity>
-                        {
-                            <Modal
-                                visible={showLocationDropdown}
-                                animationType="slide"
-                                transparent
-                                onRequestClose={() => setShowLocationDropdown(false)}
-                            >
-                                <Pressable
-                                    style={styles.modalOverlay}
-                                    onPress={() => setShowLocationDropdown(false)}
-                                >
-                                    <Pressable style={styles.modalContent}>
-                                        <Text style={styles.modalTitle}>
-                                            Select Submission Location
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.title}>Track Applications</Text>
+                                        <Text style={styles.subtitle}>
+                                            Track and monitor application progress
                                         </Text>
+                                    </View>
+                                </View>
 
-                                        <TextInput
-                                            placeholder="Search location..."
-                                            value={locationSearch}
-                                            onChangeText={setLocationSearch}
-                                            style={styles.locationSearch}
-                                        />
+                                <Text style={styles.label}>Search</Text>
 
-                                        <FlatList
-                                            data={filteredLocations}
-                                            keyExtractor={(item) => item}
-                                            keyboardShouldPersistTaps="handled"
-                                            renderItem={({ item }) => (
-                                                <TouchableOpacity
-                                                    style={styles.dropdownItem}
-                                                    onPress={() => {
+                                <TextInput
+                                    placeholder="Reference No / Officer Name"
+                                    style={styles.input}
+                                    value={search}
+                                    onChangeText={setSearch}
+                                    returnKeyType="search"
+                                />
 
-                                                        const value =
-                                                            item === "All Submission Locations"
-                                                                ? ""
-                                                                : item;
+                                <Text style={styles.label}>Submission Location</Text>
 
-                                                        setSelectedLocation(value);
+                                <TouchableOpacity
+                                    style={styles.dropdown}
+                                    onPress={() =>
+                                        setShowLocationDropdown(!showLocationDropdown)
+                                    }
+                                >
+                                    <Text
+                                        style={{
+                                            color: selectedLocation ? "#111827" : "#94A3B8",
+                                            fontWeight: selectedLocation ? "600" : "400",
+                                        }}
+                                    >
+                                        {selectedLocation || "All Submission Locations"}
+                                    </Text>
+                                </TouchableOpacity>
 
-                                                        setShowLocationDropdown(false);
+                                <Modal
+                                    visible={showLocationDropdown}
+                                    animationType="slide"
+                                    transparent
+                                    onRequestClose={() => setShowLocationDropdown(false)}
+                                >
+                                    <Pressable
+                                        style={styles.modalOverlay}
+                                        onPress={() => setShowLocationDropdown(false)}
+                                    >
+                                        <Pressable style={styles.modalContent}>
+                                            <Text style={styles.modalTitle}>
+                                                Select Submission Location
+                                            </Text>
 
-                                                        loadApplications(1, true);
-                                                    }}
-                                                >
-                                                    <Text
-                                                        style={{
-                                                            fontSize: 16,
-                                                            color: "#111827"
+                                            <TextInput
+                                                placeholder="Search location..."
+                                                value={locationSearch}
+                                                onChangeText={setLocationSearch}
+                                                style={styles.locationSearch}
+                                            />
+
+                                            <FlatList
+                                                data={filteredLocations}
+                                                keyExtractor={(item) => item}
+                                                keyboardShouldPersistTaps="handled"
+                                                renderItem={({ item }) => (
+                                                    <TouchableOpacity
+                                                        style={styles.dropdownItem}
+                                                        onPress={() => {
+                                                            const value =
+                                                                item === "All Submission Locations"
+                                                                    ? ""
+                                                                    : item;
+
+                                                            setSelectedLocation(value);
+                                                            setShowLocationDropdown(false);
+                                                            setPage(1);
+
+                                                            loadApplications(
+                                                                1,
+                                                                true,
+                                                                search,
+                                                                value
+                                                            );
                                                         }}
                                                     >
-                                                        {item}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            )}
-                                        />
+                                                        <Text
+                                                            style={{
+                                                                fontSize: 16,
+                                                                color: "#111827",
+                                                            }}
+                                                        >
+                                                            {item}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                            />
+                                        </Pressable>
                                     </Pressable>
-                                </Pressable>
-                            </Modal>
+                                </Modal>
+                            </>
                         }
-
-                    </>
-                }
-                refreshing={refreshing}
-
-                onRefresh={async () => {
-                    setRefreshing(true);
-
-                    await loadApplications(1, true);
-
-                    setRefreshing(false);
-                }}
-                renderItem={({ item }) => (
-                    <TrackCard
-                        applRefNo={item.applRefNo}
-                        submissionLocation={item.submissionLocation}
-                        officerName={item.officerName}
-                        officerRole={item.officerRole}
-                        status={item.status}
-                        heldFor={item.heldFor}
-                        onHistory={() =>
-                            router.push({
-                                pathname: "/track-history",
-                                params: {
-                                    applRefNo: item.applRefNo,
-                                },
-                            })
+                        refreshing={refreshing}
+                        onRefresh={async () => {
+                            setRefreshing(true);
+                            await loadApplications(1, true);
+                            setRefreshing(false);
+                        }}
+                        onScroll={(event) => {
+                            setScrollY(event.nativeEvent.contentOffset.y);
+                        }}
+                        scrollEventThrottle={16}
+                        onContentSizeChange={(width, height) => {
+                            setContentHeight(height);
+                        }}
+                        onLayout={(event) => {
+                            setScrollViewHeight(event.nativeEvent.layout.height);
+                        }}
+                        renderItem={({ item }) => (
+                            <TrackCard
+                                applRefNo={item.applRefNo}
+                                submissionLocation={item.submissionLocation}
+                                officerName={item.officerName}
+                                officerRole={item.officerRole}
+                                status={item.status}
+                                heldFor={item.heldFor}
+                                onHistory={() =>
+                                    router.push({
+                                        pathname: "/track-history",
+                                        params: {
+                                            applRefNo: item.applRefNo,
+                                        },
+                                    })
+                                }
+                                onReminder={() => {
+                                    setSelectedApplication(item);
+                                    setShowReminder(true);
+                                }}
+                            />
+                        )}
+                        ListEmptyComponent={
+                            <Text style={styles.emptyText}>
+                                No applications found.
+                            </Text>
                         }
-                        onReminder={() => {
+                    />
 
-                            setSelectedApplication(item);
-
-                            setShowReminder(true);
-
+                    <ScrollNavigation
+                        scrollY={scrollY}
+                        contentHeight={contentHeight}
+                        scrollViewHeight={scrollViewHeight}
+                        onScrollToTop={() => {
+                            listRef.current?.scrollToOffset({
+                                offset: 0,
+                                animated: true,
+                            });
+                        }}
+                        onScrollToBottom={() => {
+                            listRef.current?.scrollToEnd({
+                                animated: true,
+                            });
                         }}
                     />
+                </View>
+
+                {/* Numbered Pagination */}
+                {lastPage > 1 && (
+                    <View style={styles.paginationWrapper}>
+                        <View style={styles.paginationContainer}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.pageButton,
+                                    page === 1 && styles.pageButtonDisabled,
+                                ]}
+                                onPress={() => goToPage(page - 1)}
+                                disabled={page === 1 || loadingMore}
+                            >
+                                <ChevronLeft size={17} color="#FFFFFF" />
+                            </TouchableOpacity>
+
+                            <View style={styles.pageNumbers}>
+                                {Array.from(
+                                    { length: lastPage },
+                                    (_, index) => index + 1
+                                )
+                                    .filter(
+                                        (pageNumber) =>
+                                            pageNumber === 1 ||
+                                            pageNumber === lastPage ||
+                                            (
+                                                pageNumber >= page - 1 &&
+                                                pageNumber <= page + 1
+                                            )
+                                    )
+                                    .map((pageNumber, index, pages) => (
+                                        <React.Fragment key={pageNumber}>
+                                            {index > 0 &&
+                                                pages[index - 1] !== pageNumber - 1 && (
+                                                    <Text style={styles.pageEllipsis}>
+                                                        ...
+                                                    </Text>
+                                                )}
+
+                                            <TouchableOpacity
+                                                style={[
+                                                    styles.pageNumberButton,
+                                                    page === pageNumber &&
+                                                    styles.pageNumberButtonActive,
+                                                ]}
+                                                onPress={() => goToPage(pageNumber)}
+                                                disabled={loadingMore}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.pageNumberText,
+                                                        page === pageNumber &&
+                                                        styles.pageNumberTextActive,
+                                                    ]}
+                                                >
+                                                    {pageNumber}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </React.Fragment>
+                                    ))}
+                            </View>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.pageButton,
+                                    page === lastPage && styles.pageButtonDisabled,
+                                ]}
+                                onPress={() => goToPage(page + 1)}
+                                disabled={page === lastPage || loadingMore}
+                            >
+                                <ChevronRight size={17} color="#FFFFFF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.pageInfo}>
+                            {loadingMore
+                                ? "Loading..."
+                                : `Page ${page} of ${lastPage}`}
+                        </Text>
+                    </View>
                 )}
-                onEndReached={() => {
 
-                    if (page < lastPage) {
+                <ReminderModal
 
-                        loadApplications(page + 1, false);
+                    visible={showReminder}
 
-                    }
+                    onClose={() => setShowReminder(false)}
 
-                }}
+                    receiverId={selectedApplication?.receiverId}
 
-                onEndReachedThreshold={0.3}
-                ListEmptyComponent={
-                    <Text style={styles.emptyText}>
-                        No applications found.
-                    </Text>
-                }
-                ListFooterComponent={
-                    loadingMore ? (
-                        <ActivityIndicator
-                            size="small"
-                            color="#2563EB"
-                            style={{ marginVertical: 20 }}
-                        />
-                    ) : null
-                }
-            />
-            <ReminderModal
+                    applRefNo={selectedApplication?.applRefNo}
 
-                visible={showReminder}
-
-                onClose={() => setShowReminder(false)}
-
-                receiverId={selectedApplication?.receiverId}
-
-                applRefNo={selectedApplication?.applRefNo}
-
-            />
-        </SafeAreaView>
+                />
+            </SafeAreaView>
         </>
 
     );
@@ -468,18 +569,74 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
 
-    locationSearch: {
-        borderWidth: 1,
-        borderColor: "#E2E8F0",
-        borderRadius: 10,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        marginBottom: 15,
+    paginationWrapper: {
+        backgroundColor: "#FFFFFF",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+        paddingVertical: 10,
+        paddingHorizontal: 12,
     },
 
-    dropdownItem: {
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: "#F1F5F9",
+    paginationContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
     },
+
+    pageButton: {
+        width: 34,
+        height: 34,
+        borderRadius: 8,
+        backgroundColor: "#1A1A4E",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
+    pageButtonDisabled: {
+        backgroundColor: "#9CA3AF",
+    },
+
+    pageNumbers: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+    },
+
+    pageNumberButton: {
+        minWidth: 32,
+        height: 32,
+        paddingHorizontal: 8,
+        borderRadius: 7,
+        backgroundColor: "#F3F4F6",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+
+    pageNumberButtonActive: {
+        backgroundColor: "#2563EB",
+    },
+
+    pageNumberText: {
+        color: "#374151",
+        fontSize: 12,
+        fontWeight: "600",
+    },
+
+    pageNumberTextActive: {
+        color: "#FFFFFF",
+    },
+
+    pageEllipsis: {
+        color: "#6B7280",
+        fontSize: 12,
+    },
+
+    pageInfo: {
+        textAlign: "center",
+        color: "#6B7280",
+        fontSize: 11,
+        marginTop: 6,
+    },
+
 });

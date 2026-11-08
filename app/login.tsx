@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   Alert,
@@ -17,11 +18,16 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import * as Network from "expo-network";
 import { router } from "expo-router";
 import { API } from "../services/api";
 import { encryptPassword } from "../utils/encryption";
-
+import {
+  setPendingOfflinePassword,
+  clearPendingOfflinePassword,
+  verifyOfflineCredentials,
+  getOfflineUser,
+} from "../services/offlineAuth";
 const CIS_LOGO = require("../assets/images/cis_new.png");
 
 /* ─── Simple inline icons (no extra libraries) ─── */
@@ -65,6 +71,45 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
+  React.useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        const user = await AsyncStorage.getItem("user");
+
+        console.log("LOGIN SCREEN SESSION CHECK:", {
+          tokenExists: !!token,
+          userExists: !!user,
+        });
+
+        if (token && user) {
+          console.log("LOGIN SCREEN: Existing session found");
+          const parsedUser = JSON.parse(user);
+
+          if (parsedUser?.role_id === 1) {
+            router.replace("/admin-dashboard");
+          } else {
+            router.replace("/dashboard");
+          }
+        }
+
+        // if (token && user) {
+        //   const parsedUser = JSON.parse(user);
+
+        //   if (parsedUser?.role_id === 1) {
+        //     router.replace("/admin-dashboard");
+        //   } else {
+        //     router.replace("/dashboard");
+        //   }
+        // }
+      } catch (error) {
+        console.log("Session check failed:", error);
+      }
+    };
+
+    checkExistingSession();
+  }, []);
+
   const triggerShake = useCallback(() => {
     shakeAnim.setValue(0);
     Animated.sequence([
@@ -92,21 +137,117 @@ export default function LoginScreen() {
     return !hasErrors;
   }, [username, password, triggerShake]);
 
+
+
+
   const handleLogin = async () => {
+    clearPendingOfflinePassword();
+
     if (!validate()) return;
+
     setIsLoading(true);
     Keyboard.dismiss();
 
+    // Offline authentication helper
+    const attemptOfflineLogin = async () => {
+      try {
+        console.log("OFFLINE LOGIN: Checking saved credentials...");
+
+        const isValid = await verifyOfflineCredentials(
+          username.trim(),
+          password
+        );
+
+        if (!isValid) {
+          Alert.alert(
+            "Offline Login Failed",
+            "Your saved credentials are unavailable or the username/password is incorrect. Please connect to the internet and try again."
+          );
+          return;
+        }
+
+        const offlineUser = await getOfflineUser();
+
+        if (!offlineUser) {
+          Alert.alert(
+            "Offline Login Failed",
+            "Your saved user profile is unavailable. Please log in online again."
+          );
+          return;
+        }
+
+        // Remove any previous online session.
+        await AsyncStorage.multiRemove(["token", "user"]);
+
+        // Restore the cached offline user profile.
+        await AsyncStorage.setItem(
+          "user",
+          JSON.stringify(offlineUser)
+        );
+
+        await AsyncStorage.setItem("offline_mode", "true");
+
+        console.log("OFFLINE LOGIN: Authentication successful.");
+
+        setPassword("");
+
+        if (offlineUser.role_id === 1) {
+          router.replace("/admin-dashboard");
+        } else {
+          router.replace("/dashboard");
+        }
+      } catch (offlineError) {
+        console.error("OFFLINE LOGIN ERROR:", offlineError);
+
+        Alert.alert(
+          "Offline Login Failed",
+          "Unable to verify your saved credentials on this device."
+        );
+      }
+    };
+
     try {
-      const encryptedPassword = encryptPassword(password);
-      const response = await API.post("/login", {
-        username: username.trim(),
-        password: encryptedPassword,
+      // Check internet connectivity before calling Laravel.
+      const networkState = await Network.getNetworkStateAsync();
+
+      console.log("LOGIN NETWORK STATUS:", {
+        isConnected: networkState.isConnected,
+        isInternetReachable: networkState.isInternetReachable,
       });
 
+      const definitelyOffline =
+        networkState.isConnected === false ||
+        networkState.isInternetReachable === false;
+
+      if (definitelyOffline) {
+        console.log("LOGIN: No internet. Attempting offline authentication.");
+
+        await attemptOfflineLogin();
+        return;
+      }
+
+      // Internet appears available. Attempt normal online login.
+      const encryptedPassword = encryptPassword(password);
+
+      const response = await API.post(
+        "/login",
+        {
+          username: username.trim(),
+          password: encryptedPassword,
+        },
+        {
+          timeout: 10000,
+        }
+      );
+
       if (response.data.success) {
-        console.log("Login successful", response.data);
-        setPassword("");
+        // Clear any previous offline session marker.
+        await AsyncStorage.removeItem("offline_mode");
+
+        // Retain password temporarily for offline provisioning
+        // after successful OTP verification.
+        setPendingOfflinePassword(password);
+
         router.push({
           pathname: "/otp",
           params: {
@@ -116,30 +257,57 @@ export default function LoginScreen() {
             role: response.data.role || "office",
           },
         });
+
+        setPassword("");
+        return;
       }
+
+      Alert.alert(
+        "Unable to Sign In",
+        response.data.message || "Login was unsuccessful."
+      );
+
     } catch (error: any) {
-      console.log("========== API ERROR ==========");
-      console.log("Message:", error.message);
-      console.log("Status:", error.response?.status);
-      console.log("URL:", error.config?.baseURL + error.config?.url);
-      console.log("Request:", error.config?.data);
-      console.log("Response:", error.response?.data);
-      console.log("Headers:", error.config?.headers);
-      console.log("===============================");
+      clearPendingOfflinePassword();
 
       const status = error.response?.status;
 
-      /* ─── 422 Validation Errors ─── */
+      // Only use offline login for connectivity failures.
+      // Do not bypass server-side credential errors or account locks.
+      const isNetworkError =
+        !error.response &&
+        (
+          error.code === "ERR_NETWORK" ||
+          error.code === "ECONNABORTED" ||
+          error.code === "ETIMEDOUT" ||
+          error.message?.toLowerCase().includes("network") ||
+          error.message?.toLowerCase().includes("timeout")
+        );
+
+      if (isNetworkError) {
+        console.log(
+          "LOGIN: Backend unreachable. Attempting offline authentication."
+        );
+
+        await attemptOfflineLogin();
+        return;
+      }
+
       if (status === 422) {
         const backendErrors = error.response?.data?.errors;
+
         if (backendErrors) {
-          const newErrors: { username?: string; password?: string } = {};
+          const newErrors: {
+            username?: string;
+            password?: string;
+          } = {};
 
           if (backendErrors.username) {
             newErrors.username = Array.isArray(backendErrors.username)
               ? backendErrors.username[0]
               : backendErrors.username;
           }
+
           if (backendErrors.password) {
             newErrors.password = Array.isArray(backendErrors.password)
               ? backendErrors.password[0]
@@ -148,31 +316,36 @@ export default function LoginScreen() {
 
           setErrors(newErrors);
           triggerShake();
-          setIsLoading(false);
-          return; // show inline only — no Alert popup
+          return;
         }
       }
 
-      /* ─── Friendly Alert for other errors ─── */
-      let userMessage = "Something went wrong. Please try again in a moment.";
+      let userMessage =
+        "Something went wrong. Please try again in a moment.";
 
       if (status === 401) {
-        userMessage = "The username or password you entered is incorrect. Please check and try again.";
+        userMessage =
+          "The username or password you entered is incorrect.";
       } else if (status === 403) {
-        userMessage = "Your account has been temporarily locked. Please contact your System Administrator.";
+        userMessage =
+          "Your account has been temporarily locked. Please contact your System Administrator.";
       } else if (status === 404) {
-        userMessage = "The login service is currently unavailable. Please try again later.";
+        userMessage =
+          "The login service is currently unavailable.";
       } else if (status >= 500) {
-        userMessage = "We're experiencing technical difficulties. Please try again in a few minutes.";
-      } else if (error.message?.includes("Network") || error.message?.includes("network")) {
-        userMessage = "No internet connection detected. Please check your network settings and try again.";
+        userMessage =
+          "We're experiencing technical difficulties. Please try again later.";
       }
 
-      Alert.alert("Unable to Sign In", userMessage, [{ text: "Got it", style: "default" }]);
+      Alert.alert("Unable to Sign In", userMessage);
+
     } finally {
       setIsLoading(false);
     }
   };
+
+
+
 
   const dismissKeyboard = () => Keyboard.dismiss();
 

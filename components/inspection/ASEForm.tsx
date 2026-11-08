@@ -1,5 +1,6 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from "expo-file-system/legacy";
 import React, { useState } from "react";
 import {
   Alert,
@@ -14,6 +15,31 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const persistPickedDocument = async (file: any) => {
+  const root = FileSystem.documentDirectory;
+  if (!root) throw new Error("App document storage is unavailable.");
+
+  const directory = `${root}cis_offline/inspection_attachments/`;
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+
+  const safeName = String(file.name || "attachment")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  const destination = `${directory}${Date.now()}_${safeName}`;
+
+  await FileSystem.copyAsync({ from: file.uri, to: destination });
+  const info = await FileSystem.getInfoAsync(destination);
+  if (!info.exists || !info.size) {
+    throw new Error("The selected document could not be saved on this device.");
+  }
+
+  return {
+    uri: destination,
+    name: file.name || safeName,
+    type: file.mimeType || "application/octet-stream",
+    size: file.size,
+  };
+};
 
 // Reusable components
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -291,7 +317,7 @@ export default function ASEForm({
 }: {
   inspectionASE: any;
   eodbAse: any;
-   eodbCommon: any;
+  eodbCommon: any;
   user: any;
   onSave?: (data: any) => void;
   onBack?: () => void;
@@ -357,21 +383,24 @@ export default function ASEForm({
   );
 
   // ===== SECTION 3: Adolescent Worker Details =====
-  const [adolescentDetails, setAdolescentDetails] = useState(
-    inspectionASE?.adolescent_details_ase || [
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
-    ],
+
+  const [adolescentDetails, setAdolescentDetails] = useState<any[]>(
+    Array.isArray(inspectionASE?.adolescent_details_ase)
+      ? inspectionASE.adolescent_details_ase
+      : [
+        {
+          labour_office_intimation: "",
+          name: "",
+          address: "",
+          age: "",
+          age_proof: null,
+          age_proof_name: "",
+          hazardous_work: "",
+          working_hours: "",
+          maintain_register: "",
+          wage_amount: "",
+        },
+      ],
   );
 
   const addAdolescent = () => {
@@ -419,20 +448,14 @@ export default function ASEForm({
       if (!result.canceled) {
         const file = result.assets[0];
 
+        const savedFile = await persistPickedDocument(file);
         setAdolescentDetails(prev => {
           const updated = [...prev];
-
           updated[index] = {
             ...updated[index],
-            age_proof: {
-              uri: file.uri,
-              name: file.name,
-              type: file.mimeType || "application/octet-stream",
-              size: file.size,
-            },
+            age_proof: savedFile,
             age_proof_name: file.name,
           };
-
           return updated;
         });
 
@@ -587,8 +610,10 @@ export default function ASEForm({
   const [violationOfProvisions, setViolationOfProvisions] = useState(
     inspectionASE?.violation_of_provisions || "",
   );
-  const [directions, setDirections] = useState(
-    inspectionASE?.ase_directions || [""],
+  const [directions, setDirections] = useState<any[]>(
+    Array.isArray(inspectionASE?.ase_directions)
+      ? inspectionASE.ase_directions
+      : [""],
   );
   const [additionalRemarks, setAdditionalRemarks] = useState(
     inspectionASE?.additional_remarks || "",

@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -19,8 +20,18 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
-
+import ScrollNavigation from "../components/ScrollNavigation";
 import { API } from "../services/api";
+import {
+  getApplicationQueue,
+  getOfflineDownloadProgress,
+  getOfflineDownloadRecords,
+  resetInterruptedOfflineDownloads,
+  saveApplicationQueue,
+  saveCachedApplication,
+  saveOfflineDownloadRecords,
+  updateOfflineDownloadStatus,
+} from "../services/offlineStorage";
 
 const { width } = Dimensions.get("window");
 const STATUS_BAR_HEIGHT = StatusBar.currentHeight || 0;
@@ -41,11 +52,39 @@ const Icons = {
   ChevronDown: () => <Feather name="chevron-down" size={16} color="#666" />,
 };
 
+// Restore the locally saved inspection date when the API/cache queue does not
+// contain it. The download table is the durable local source for scheduled dates.
+const mergeInspectionDates = (applications: any[], records: any[]) => {
+  const recordsByReference = new Map(
+    records.map((record: any) => [
+      String(record.reference_number),
+      record,
+    ])
+  );
+
+  return applications.map((item: any) => {
+    const record = recordsByReference.get(String(item.appl_ref_no));
+    return {
+      ...item,
+      inspection_scheduled_on:
+        item.inspection_scheduled_on || record?.inspection_date || null,
+    };
+  });
+};
+
 export default function ApplicationsScreen() {
   const [allApplications, setAllApplications] = useState<any[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState({
+    total: 0,
+    downloaded: 0,
+    pending: 0,
+    downloading: 0,
+    failed: 0,
+  });
 
+  const [isDownloading, setIsDownloading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
@@ -56,7 +95,11 @@ export default function ApplicationsScreen() {
   const ITEMS_PER_PAGE = 10;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const listRef = useRef<FlatList<any>>(null);
 
+  const [scrollY, setScrollY] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
     return () => clearTimeout(timer);
@@ -65,6 +108,10 @@ export default function ApplicationsScreen() {
   useEffect(() => {
     loadApplications();
   }, []);
+
+  useEffect(() => {
+    refreshDownloadProgress();
+  }, [allApplications]);
 
   useEffect(() => {
     filterApplications();
@@ -80,29 +127,338 @@ export default function ApplicationsScreen() {
     }
   }, [loading]);
 
+
   const loadApplications = async () => {
     try {
+      const offlineMode = await AsyncStorage.getItem("offline_mode");
+
+      // ==========================================
+      // OFFLINE MODE: READ DIRECTLY FROM SQLITE
+      // ==========================================
+      if (offlineMode === "true") {
+        const [cachedData, downloadRecords] = await Promise.all([
+          getApplicationQueue(),
+          getOfflineDownloadRecords(),
+        ]);
+
+        if (cachedData && cachedData.length > 0) {
+          const restoredApplications = mergeInspectionDates(
+            cachedData,
+            downloadRecords as any[]
+          );
+
+          setAllApplications(restoredApplications);
+
+          const uniqueLocations: string[] = Array.from(
+            new Set<string>(
+              (restoredApplications as any[])
+                .map((item: any) => item.submission_location)
+                .filter((location: any): location is string =>
+                  typeof location === "string" && location.length > 0
+                )
+            )
+          );
+
+          setLocations(uniqueLocations as string[]);
+          await refreshDownloadProgress(restoredApplications);
+        } else {
+          setAllApplications([]);
+          setLocations([]);
+
+          Alert.alert(
+            "Offline Applications",
+            "No previously downloaded applications are available on this device."
+          );
+        }
+
+        return;
+      }
+
+      // ==========================================
+      // ONLINE MODE
+      // ==========================================
+      await resetInterruptedOfflineDownloads();
+
       const token = await AsyncStorage.getItem("token");
+
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+
       const response = await API.get("/applications", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = response.data.data || [];
-      setAllApplications(data);
+      const existingDownloadRecords = await getOfflineDownloadRecords();
+      const restoredApplications = mergeInspectionDates(
+        data,
+        existingDownloadRecords as any[]
+      );
+
+      // Save the merged queue so a server response that omits a previously
+      // scheduled date cannot erase the date needed during the next offline login.
+      await saveOfflineDownloadRecords(
+        restoredApplications.filter((item: any) => item.inspection_scheduled_on)
+      );
+      await saveApplicationQueue(restoredApplications);
+
+      setAllApplications(restoredApplications);
 
       const uniqueLocations = [
         ...new Set(
-          data.map((item: any) => item.submission_location).filter(Boolean),
+          restoredApplications.map((item: any) => item.submission_location).filter(Boolean)
         ),
       ];
+
       setLocations(uniqueLocations as string[]);
+
     } catch (error: any) {
-      console.log(error?.response?.data);
-      Alert.alert("Error", "Failed to load applications");
+      console.log("Unable to fetch applications:", error?.message);
+
+      const [cachedData, downloadRecords] = await Promise.all([
+        getApplicationQueue(),
+        getOfflineDownloadRecords(),
+      ]);
+
+      if (cachedData) {
+        const restoredApplications = mergeInspectionDates(
+          cachedData,
+          downloadRecords as any[]
+        );
+        setAllApplications(restoredApplications);
+
+        const uniqueLocations = [
+          ...new Set(
+            restoredApplications
+              .map((item: any) => item.submission_location)
+              .filter(Boolean)
+          ),
+        ];
+
+        setLocations(uniqueLocations as string[]);
+
+        Alert.alert(
+          "Offline Mode",
+          "Showing previously downloaded applications."
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          "No internet connection and no cached applications available."
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
+
+
+
+
+  const refreshDownloadProgress = async (
+    applications: any[] = allApplications
+  ) => {
+    const records = await getOfflineDownloadRecords();
+
+    // The Scheduled count comes from the applications list, not from the
+    // download table. A newly scheduled application must count immediately,
+    // even before the inspector downloads its form.
+    const scheduledRefs = new Set(
+      applications
+        .filter((item: any) => item.inspection_scheduled_on)
+        .map((item: any) => String(item.appl_ref_no))
+    );
+
+    const currentRecords = records.filter((record: any) =>
+      scheduledRefs.has(String(record.reference_number))
+    );
+
+    const downloaded = currentRecords.filter(
+      (record: any) => record.download_status === "downloaded"
+    ).length;
+    const downloading = currentRecords.filter(
+      (record: any) => record.download_status === "downloading"
+    ).length;
+    const failed = currentRecords.filter(
+      (record: any) => record.download_status === "failed"
+    ).length;
+
+    // Treat scheduled applications without a download-table row as pending.
+    // This prevents the Scheduled count from waiting for the Download button.
+    const pending = Math.max(
+      0,
+      scheduledRefs.size - downloaded - downloading - failed
+    );
+
+    setDownloadProgress({
+      total: scheduledRefs.size,
+      downloaded,
+      pending,
+      downloading,
+      failed,
+    });
+  };
+
+  const downloadScheduledApplications = async () => {
+    if (isDownloading) return;
+    const offlineMode = await AsyncStorage.getItem("offline_mode");
+
+    if (offlineMode === "true") {
+      Alert.alert(
+        "Offline Mode",
+        "You are currently offline. Previously downloaded forms are available, but downloading new forms requires an internet connection."
+      );
+      return;
+    }
+    const scheduledApplications = allApplications.filter(
+      (item: any) => item.inspection_scheduled_on
+    );
+
+    if (scheduledApplications.length === 0) {
+      Alert.alert(
+        "No Scheduled Applications",
+        "Please save an inspection date for at least one application."
+      );
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+
+      // Register only applications with saved inspection dates.
+      // Register only applications with saved inspection dates.
+      await saveOfflineDownloadRecords(scheduledApplications);
+
+      // Reset downloads interrupted by an app closure or network interruption.
+      await resetInterruptedOfflineDownloads();
+
+      const records = await getOfflineDownloadRecords();
+      console.log(
+        "OFFLINE DOWNLOAD RECORDS:",
+        records.map((record: any) => ({
+          reference_number: record.reference_number,
+          inspection_date: record.inspection_date,
+          download_status: record.download_status,
+        }))
+      );
+      // Process only scheduled applications that are not already downloaded.
+      const scheduledRefs = new Set(
+        scheduledApplications.map((item: any) => String(item.appl_ref_no))
+      );
+
+      const recordsToDownload = records.filter(
+        (record: any) =>
+          scheduledRefs.has(String(record.reference_number)) &&
+          ["pending", "failed"].includes(record.download_status)
+      );
+
+      await refreshDownloadProgress();
+
+      const token = await AsyncStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
+
+      for (const record of recordsToDownload) {
+        const refNo = String(record.reference_number);
+
+        try {
+          await updateOfflineDownloadStatus(refNo, "downloading");
+          await refreshDownloadProgress();
+
+          const response = await API.get(
+            `/inspection-form/${encodeURIComponent(refNo)}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          // Laravel returns success and the inspection payload at the top level.
+          // Cache the complete response so online and offline restoration use
+          // exactly the same data structure.
+          const apiData = response.data;
+
+          if (
+            !apiData ||
+            apiData.success !== true ||
+            !Object.prototype.hasOwnProperty.call(apiData, "application") ||
+            !Array.isArray(apiData.inspections)
+          ) {
+            throw new Error(
+              apiData?.message ||
+              "The inspection form API returned an unexpected response."
+            );
+          }
+
+          await saveCachedApplication(refNo, apiData);
+
+          await updateOfflineDownloadStatus(refNo, "downloaded");
+        } catch (error: any) {
+          console.log(
+            `Offline download failed for ${refNo}:`,
+            error?.response?.data || error?.message
+          );
+
+          await updateOfflineDownloadStatus(
+            refNo,
+            "failed",
+            error?.response?.data?.message ||
+            error?.message ||
+            "Download failed"
+          );
+        }
+
+        await refreshDownloadProgress();
+      }
+
+      await refreshDownloadProgress();
+
+
+      const finalRecords = await getOfflineDownloadRecords();
+
+      const finalScheduledRecords = finalRecords.filter(
+        (record: any) =>
+          scheduledRefs.has(String(record.reference_number))
+      );
+
+      const finalDownloaded = finalScheduledRecords.filter(
+        (record: any) => record.download_status === "downloaded"
+      ).length;
+
+      const finalFailed = finalScheduledRecords.filter(
+        (record: any) => record.download_status === "failed"
+      ).length;
+
+      if (finalFailed > 0) {
+        Alert.alert(
+          "Download Completed with Errors",
+          `${finalDownloaded} of ${scheduledApplications.length} scheduled applications downloaded successfully. ${finalFailed} failed. You can retry the failed downloads.`
+        );
+      } else {
+        Alert.alert(
+          "Download Complete",
+          `${finalDownloaded} scheduled applications downloaded successfully.`
+        );
+      }
+
+    } catch (error: any) {
+      console.log("Bulk download error:", error?.message);
+
+      Alert.alert(
+        "Download Error",
+        error?.message || "Unable to download applications."
+      );
+    } finally {
+      setIsDownloading(false);
+      await refreshDownloadProgress();
+    }
+  };
+
 
   const filterApplications = () => {
     let filtered = [...allApplications];
@@ -153,19 +509,77 @@ export default function ApplicationsScreen() {
     onSuccess: () => void,
   ) => {
     try {
+      // The offline-login flag can remain true after connectivity returns.
+      // Use the current network state to decide whether the API can be called.
+      const network = await NetInfo.fetch();
+      const isOffline =
+        network.isConnected === false ||
+        network.isInternetReachable === false;
+
+      if (isOffline) {
+        Alert.alert(
+          "Offline Mode",
+          "Inspection dates can only be scheduled while connected to the internet."
+        );
+        return;
+      }
+
       const token = await AsyncStorage.getItem("token");
-      await API.post(
+      if (!token) {
+        Alert.alert(
+          "Session Expired",
+          "Please log in again to schedule an inspection."
+        );
+        return;
+      }
+
+      const response = await API.post(
         "/set-inspection-date",
         { appl_ref_no: applRefNo, inspection_date: inspectionDate },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      Alert.alert("Success", "Inspection Date Saved Successfully");
+
+      if (response.data?.success !== true) {
+        throw new Error(
+          response.data?.message ||
+            "The server did not confirm the inspection date."
+        );
+      }
+
+      const updatedApplications = allApplications.map((item: any) =>
+        item.appl_ref_no === applRefNo
+          ? { ...item, inspection_scheduled_on: inspectionDate }
+          : item
+      );
+
+      await saveOfflineDownloadRecords([
+        {
+          appl_ref_no: applRefNo,
+          inspection_scheduled_on: inspectionDate,
+        },
+      ]);
+      await saveApplicationQueue(updatedApplications);
+
+      setAllApplications(updatedApplications);
+      await refreshDownloadProgress(updatedApplications);
+
       onSuccess();
+
+      Alert.alert(
+        "Inspection Date Saved",
+        response.data?.message ||
+          "The inspection date has been saved successfully."
+      );
     } catch (error: any) {
-      console.log("FULL ERROR:", error?.response?.data);
+      console.log(
+        "INSPECTION DATE SAVE ERROR:",
+        error?.response?.data || error?.message
+      );
       Alert.alert(
         "Error",
-        error?.response?.data?.message || "Failed to Save Inspection Date",
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to save inspection date."
       );
     }
   };
@@ -206,6 +620,99 @@ export default function ApplicationsScreen() {
           </Text>
         </View>
         <View style={styles.pageHeaderRight} />
+      </View>
+
+      {/* Offline Download Panel */}
+      <View style={styles.offlinePanel}>
+        <View style={styles.offlinePanelHeader}>
+          <View>
+            <Text style={styles.offlinePanelTitle}>
+              Offline Form Downloads
+            </Text>
+            <Text style={styles.offlinePanelSubtitle}>
+              Only applications with saved inspection dates
+            </Text>
+          </View>
+          <Feather name="download-cloud" size={23} color="#1a1a4e" />
+        </View>
+
+        <View style={styles.downloadStats}>
+          <View style={styles.downloadStat}>
+            <Text style={styles.downloadTotal}>
+              {downloadProgress.total}
+            </Text>
+            <Text style={styles.downloadStatLabel}>Scheduled</Text>
+          </View>
+
+          <View style={styles.downloadStat}>
+            <Text style={styles.downloadSuccess}>
+              {downloadProgress.downloaded}
+            </Text>
+            <Text style={styles.downloadStatLabel}>Downloaded</Text>
+          </View>
+
+          <View style={styles.downloadStat}>
+            <Text style={styles.downloadPending}>
+              {downloadProgress.pending + downloadProgress.downloading}
+            </Text>
+            <Text style={styles.downloadStatLabel}>Remaining</Text>
+          </View>
+
+          <View style={styles.downloadStat}>
+            <Text style={styles.downloadFailed}>
+              {downloadProgress.failed}
+            </Text>
+            <Text style={styles.downloadStatLabel}>Failed</Text>
+          </View>
+        </View>
+
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${downloadProgress.total > 0
+                  ? (downloadProgress.downloaded / downloadProgress.total) * 100
+                  : 0
+                  }%`,
+              },
+            ]}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.offlineDownloadButton,
+            isDownloading && styles.offlineDownloadButtonDisabled,
+          ]}
+          onPress={downloadScheduledApplications}
+          disabled={isDownloading || downloadProgress.total === 0}
+        >
+          {isDownloading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Feather name="download" size={17} color="#fff" />
+          )}
+
+          <Text style={styles.offlineDownloadButtonText}>
+            {isDownloading
+              ? "Downloading..."
+              : "Download Scheduled Forms"}
+          </Text>
+        </TouchableOpacity>
+
+        {downloadProgress.failed > 0 && (
+          <TouchableOpacity
+            style={styles.retryDownloadButton}
+            onPress={downloadScheduledApplications}
+            disabled={isDownloading}
+          >
+            <Feather name="refresh-cw" size={15} color="#E53935" />
+            <Text style={styles.retryDownloadText}>
+              Retry Failed Downloads
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search & Filter Section */}
@@ -300,31 +807,64 @@ export default function ApplicationsScreen() {
       )}
 
       {/* Content */}
+
+      {/* Content */}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <FlatList
-          data={paginatedData}
-          keyExtractor={(item) => item.appl_ref_no}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item, index }) => (
-            <ApplicationCard
-              item={item}
-              index={index}
-              onSave={saveInspectionDate}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Icons.Inbox />
-              <Text style={styles.emptyTitle}>No Applications Found</Text>
-              <Text style={styles.emptySubtitle}>
-                {searchQuery || selectedLocation
-                  ? "Try adjusting your search or filters"
-                  : "Check back later for new items"}
-              </Text>
-            </View>
-          }
-        />
+        <View style={{ flex: 1, position: "relative" }}>
+          <FlatList
+            ref={listRef}
+            data={paginatedData}
+            keyExtractor={(item) => item.appl_ref_no}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item, index }) => (
+              <ApplicationCard
+                item={item}
+                index={index}
+                onSave={saveInspectionDate}
+              />
+            )}
+            onScroll={(event) => {
+              setScrollY(event.nativeEvent.contentOffset.y);
+            }}
+            scrollEventThrottle={16}
+            onContentSizeChange={(width, height) => {
+              setContentHeight(height);
+            }}
+            onLayout={(event) => {
+              setScrollViewHeight(event.nativeEvent.layout.height);
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Icons.Inbox />
+                <Text style={styles.emptyTitle}>No Applications Found</Text>
+                <Text style={styles.emptySubtitle}>
+                  {searchQuery || selectedLocation
+                    ? "Try adjusting your search or filters"
+                    : "Check back later for new items"}
+                </Text>
+              </View>
+            }
+          />
+
+          <ScrollNavigation
+            scrollY={scrollY}
+            contentHeight={contentHeight}
+            scrollViewHeight={scrollViewHeight}
+            onScrollToTop={() => {
+              listRef.current?.scrollToOffset({
+                offset: 0,
+                animated: true,
+              });
+            }}
+            onScrollToBottom={() => {
+              listRef.current?.scrollToEnd({
+                animated: true,
+              });
+            }}
+          />
+        </View>
       </Animated.View>
+
 
       {/* Pagination Footer */}
       {totalPages > 1 && (
@@ -412,6 +952,13 @@ function ApplicationCard({
   );
 
   const cardAnim = useRef(new Animated.Value(0)).current;
+
+  // Keep the card's controlled date/status in sync when its restored item changes.
+  useEffect(() => {
+    const savedDate = item.inspection_scheduled_on || "";
+    setInspectionDate(savedDate);
+    setIsDateSaved(!!savedDate);
+  }, [item.appl_ref_no, item.inspection_scheduled_on]);
 
   useEffect(() => {
     Animated.timing(cardAnim, {
@@ -1035,4 +1582,128 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
+
+  offlinePanel: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 14,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+  },
+
+  offlinePanelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+
+  offlinePanelTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1a1a4e",
+  },
+
+  offlinePanelSubtitle: {
+    fontSize: 11,
+    color: "#777",
+    marginTop: 3,
+  },
+
+  downloadStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+
+  downloadStat: {
+    alignItems: "center",
+    flex: 1,
+  },
+
+  downloadTotal: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#245BB5",
+  },
+
+  downloadSuccess: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#21864A",
+  },
+
+  downloadPending: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#D99022",
+  },
+
+  downloadFailed: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#E53935",
+  },
+
+  downloadStatLabel: {
+    fontSize: 10,
+    color: "#777",
+    marginTop: 3,
+  },
+
+  progressTrack: {
+    height: 8,
+    backgroundColor: "#E7E9EF",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 14,
+  },
+
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#2684E8",
+    borderRadius: 10,
+  },
+
+  offlineDownloadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1a1a4e",
+    padding: 12,
+    borderRadius: 9,
+  },
+
+  offlineDownloadButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  offlineDownloadButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  retryDownloadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    padding: 10,
+    marginTop: 6,
+  },
+
+  retryDownloadText: {
+    color: "#E53935",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
 });
