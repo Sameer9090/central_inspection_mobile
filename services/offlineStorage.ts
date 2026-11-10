@@ -438,15 +438,30 @@ export const saveOfflineDownloadRecords = async (
     }
 };
 
+interface OfflineDownloadRecord {
+    reference_number: string;
+    download_status: "pending" | "downloading" | "downloaded" | "failed";
+}
+
 export const getOfflineDownloadRecords = async () => {
     const db = await getOfflineDatabase();
 
-    return await db.getAllAsync(
+    return await db.getAllAsync<OfflineDownloadRecord>(
         `SELECT *
          FROM offline_application_downloads
          ORDER BY inspection_date ASC`
     );
 };
+
+// export const getOfflineDownloadRecords = async () => {
+//     const db = await getOfflineDatabase();
+
+//     return await db.getAllAsync(
+//         `SELECT *
+//          FROM offline_application_downloads
+//          ORDER BY inspection_date ASC`
+//     );
+// };
 
 export const updateOfflineDownloadStatus = async (
     referenceNumber: string,

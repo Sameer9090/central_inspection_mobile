@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  ImageBackground,
   RefreshControl,
   Modal as RNModal,
   ScrollView,
@@ -17,14 +18,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import AppHeader from "../components/AppHeader";
-import ScrollNavigation from "../components/ScrollNavigation";
 import { API } from "../services/api";
 import { getOfflineUser } from "../services/offlineAuth";
 import {
   getDashboardCache,
   saveDashboardCache,
 } from "../services/offlineStorage";
-
 const Icons = {
   Bell: () => <Feather name="bell" size={22} color="#fff" />,
   LogOut: () => <Feather name="log-out" size={22} color="#fff" />,
@@ -94,12 +93,6 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  // Scroll navigation
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [scrollY, setScrollY] = useState(0);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -417,25 +410,10 @@ export default function DashboardScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#1E2F5B" />
 
       <ScrollView
-        ref={scrollViewRef}
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#1a1a4e"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1a1a4e" />
         }
-        scrollEventThrottle={16}
-        onScroll={(event) => {
-          setScrollY(event.nativeEvent.contentOffset.y);
-        }}
-        onContentSizeChange={(width, height) => {
-          setContentHeight(height);
-        }}
-        onLayout={(event) => {
-          setScrollViewHeight(event.nativeEvent.layout.height);
-        }}
       >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           {/* Welcome Section */}
@@ -515,13 +493,20 @@ export default function DashboardScreen() {
 
           </View>
 
-          {/* Section Title */}
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon} />
-            <Text style={styles.sectionTitle}>DASHBOARD OVERVIEW</Text>
-          </View>
+          {/* Panoramic Assam banner: decorative background behind the section heading only. */}
+          <ImageBackground
+            source={require("../assets/images/assam-dashboard-bg.png")}
+            style={styles.assamBanner}
+            imageStyle={styles.assamBackground}
+            resizeMode="stretch"
+          >
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIcon} />
+              <Text style={styles.sectionTitle}>DASHBOARD OVERVIEW</Text>
+            </View>
+          </ImageBackground>
 
-          {/* Stats Grid */}
+          {/* Keep dashboard cards on a clean, unobstructed surface. */}
           {statCards.length > 0 ? (
             <View style={styles.statsGrid}>
               {statCards.map((card, index) => (
@@ -581,22 +566,7 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
       </ScrollView>
-      <ScrollNavigation
-        scrollY={scrollY}
-        contentHeight={contentHeight}
-        scrollViewHeight={scrollViewHeight}
-        onScrollToTop={() => {
-          scrollViewRef.current?.scrollTo({
-            y: 0,
-            animated: true,
-          });
-        }}
-        onScrollToBottom={() => {
-          scrollViewRef.current?.scrollToEnd({
-            animated: true,
-          });
-        }}
-      />
+
       <RNModal
         transparent
         visible={logoutModalVisible}
@@ -675,12 +645,22 @@ const styles = StyleSheet.create({
     color: "#888",
     fontWeight: "500",
   },
+  assamBanner: {
+    width: "100%",
+    aspectRatio: 3.2,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  assamBackground: {
+    opacity: 0.48,
+  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 18,
-    marginTop: 22,
-    marginBottom: 14,
+    marginTop: 0,
+    marginBottom: 12,
     gap: 10,
   },
   sectionIcon: {

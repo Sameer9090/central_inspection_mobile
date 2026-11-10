@@ -17,6 +17,7 @@ interface Props {
   onResend?: () => void;
   loading?: boolean;
   requestingOtp?: boolean;
+  submittingInspection?: boolean;
 }
 
 export default function OtpModal({
@@ -27,6 +28,7 @@ export default function OtpModal({
   onResend,
   loading = false,
   requestingOtp = false,
+  submittingInspection = false,
 }: Props) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(60);
@@ -48,7 +50,7 @@ export default function OtpModal({
   // Do not start the resend countdown while the inspection is being saved
   // or while the initial OTP request is still in progress.
   useEffect(() => {
-    if (!visible || requestingOtp) return;
+    if (!visible || requestingOtp || submittingInspection) return;
 
     if (timer <= 0) {
       setCanResend(true);
@@ -60,17 +62,17 @@ export default function OtpModal({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer, visible, requestingOtp]);
+  }, [timer, visible, requestingOtp, submittingInspection]);
 
   useEffect(() => {
-    if (!visible || requestingOtp || loading) return;
+    if (!visible || requestingOtp || loading || submittingInspection) return;
 
     const focusTimer = setTimeout(() => {
       inputs.current[0]?.focus();
     }, 200);
 
     return () => clearTimeout(focusTimer);
-  }, [visible, requestingOtp, loading]);
+  }, [visible, requestingOtp, loading, submittingInspection]);
 
   const handleChange = (text: string, index: number) => {
     const digits = text.replace(/\D/g, "");
@@ -113,7 +115,7 @@ export default function OtpModal({
       return;
     }
 
-    if (verificationInProgress.current || loading || requestingOtp) {
+    if (verificationInProgress.current || loading || requestingOtp || submittingInspection) {
       return;
     }
 
@@ -128,7 +130,7 @@ export default function OtpModal({
   };
 
   const resend = () => {
-    if (loading || requestingOtp || !canResend) return;
+    if (loading || requestingOtp || submittingInspection || !canResend) return;
 
     setOtp(["", "", "", "", "", ""]);
     setTimer(60);
@@ -148,7 +150,7 @@ export default function OtpModal({
       animationType="fade"
       visible={visible}
       onRequestClose={() => {
-        if (!loading && !requestingOtp) onClose();
+        if (!loading && !requestingOtp && !submittingInspection) onClose();
       }}
     >
       <View style={styles.overlay}>
@@ -157,14 +159,16 @@ export default function OtpModal({
             <Text style={styles.headerTitle}>🔐 OTP Verification</Text>
             <TouchableOpacity
               onPress={onClose}
-              disabled={loading || requestingOtp}
+              disabled={loading || requestingOtp || submittingInspection}
             >
               <Text style={styles.close}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.info}>
-            We have sent you One Time Password to your registered Mobile Number
+            {requestingOtp
+              ? "Your inspection is being prepared. An OTP will be sent to your registered mobile number."
+              : "OTP sent successfully. Please enter the OTP to proceed."}
           </Text>
 
           <Text style={styles.mobile}>{masked}</Text>
@@ -173,7 +177,23 @@ export default function OtpModal({
             <View style={styles.progress}>
               <ActivityIndicator size="small" color="#1976D2" />
               <Text style={styles.progressText}>
-                Preparing inspection and sending OTP. Please wait...
+                Preparing your inspection form and sending OTP. Please wait...
+              </Text>
+            </View>
+          )}
+
+          {loading && !requestingOtp && !submittingInspection && (
+            <View style={styles.progress}>
+              <ActivityIndicator size="small" color="#1976D2" />
+              <Text style={styles.progressText}>Verifying OTP. Please wait...</Text>
+            </View>
+          )}
+
+          {submittingInspection && (
+            <View style={styles.progress}>
+              <ActivityIndicator size="small" color="#1976D2" />
+              <Text style={styles.progressText}>
+                Submitting your inspection form. Please wait...
               </Text>
             </View>
           )}
@@ -195,7 +215,7 @@ export default function OtpModal({
                     handleBackspace(index);
                   }
                 }}
-                editable={!loading && !requestingOtp}
+                editable={!loading && !requestingOtp && !submittingInspection}
               />
             ))}
           </View>
@@ -205,12 +225,12 @@ export default function OtpModal({
           <TouchableOpacity
             style={[
               styles.verifyButton,
-              (loading || requestingOtp) && styles.disabledButton,
+              (loading || requestingOtp || submittingInspection) && styles.disabledButton,
             ]}
             onPress={verify}
-            disabled={loading || requestingOtp}
+            disabled={loading || requestingOtp || submittingInspection}
           >
-            {loading || requestingOtp ? (
+            {loading || requestingOtp || submittingInspection ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.verifyText}>✓ Verify OTP</Text>
@@ -225,7 +245,7 @@ export default function OtpModal({
             <TouchableOpacity
               style={styles.resendButton}
               onPress={resend}
-              disabled={loading || requestingOtp}
+              disabled={loading || requestingOtp || submittingInspection}
             >
               <Text style={styles.resendText}>🔄 Resend OTP</Text>
             </TouchableOpacity>

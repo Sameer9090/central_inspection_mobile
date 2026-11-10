@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1800" viewBox="0 0 900 1800">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#d8effb"/>
+  <stop offset=".48" stop-color="#e8f5fb"/>
+  <stop offset="1" stop-color="#d8f0ec"/>
+ </linearGradient>
+ <linearGradient id="river" x1="0" y1="0" x2="1" y2="0">
+  <stop stop-color="#80c7e8" stop-opacity=".65"/>
+  <stop offset=".5" stop-color="#b2e0f3" stop-opacity=".72"/>
+  <stop offset="1" stop-color="#6eb9df" stop-opacity=".58"/>
+ </linearGradient>
+ <linearGradient id="hills" x1="0" y1="0" x2="0" y2="1">
+  <stop stop-color="#8fc8d8" stop-opacity=".62"/>
+  <stop offset="1" stop-color="#b8e0df" stop-opacity=".3"/>
+ </linearGradient>
+ <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#ffffff" stop-opacity=".12"/>
+  <stop offset=".22" stop-color="#ffffff" stop-opacity=".08"/>
+  <stop offset=".7" stop-color="#ffffff" stop-opacity=".18"/>
+  <stop offset="1" stop-color="#ffffff" stop-opacity=".35"/>
+ </linearGradient>
+</defs>
+<rect width="900" height="1800" fill="url(#bg)"/>
+<!-- distant hills -->
+<path d="M0 250 Q120 150 250 235 T500 210 T900 195 L900 540 L0 540Z" fill="url(#hills)"/>
+<path d="M0 380 Q170 275 330 355 T650 330 T900 300 L900 650 L0 650Z" fill="#a8d8e6" opacity=".34"/>
+<!-- soft cloud bands -->
+<g fill="#fff" opacity=".34">
+ <ellipse cx="180" cy="155" rx="190" ry="48"/>
+ <ellipse cx="650" cy="115" rx="210" ry="56"/>
+ <ellipse cx="480" cy="275" rx="280" ry="38"/>
+</g>
+<!-- Saraighat bridge -->
+<g transform="translate(0 450)" fill="none" stroke="#398fbe" stroke-width="13" opacity=".72" stroke-linejoin="round">
+ <path d="M-20 0 H920 M-20 28 H920"/>
+ <path d="M0 0 L55 -110 L110 0 L165 -110 L220 0 L275 -110 L330 0 L385 -110 L440 0 L495 -110 L550 0 L605 -110 L660 0 L715 -110 L770 0 L825 -110 L900 0"/>
+ <path d="M0 0 V170 M180 0 V145 M360 0 V125 M540 0 V125 M720 0 V145 M900 0 V170"/>
+</g>
+<g stroke="#fff" stroke-width="8" opacity=".56">
+ <path d="M0 492 H900"/>
+</g>
+<!-- Brahmaputra river -->
+<path d="M0 690 Q210 630 410 690 T900 670 L900 970 Q650 930 450 970 T0 950Z" fill="url(#river)"/>
+<g fill="none" stroke="#fff" stroke-width="8" opacity=".52">
+ <path d="M0 745 Q220 700 440 745 T900 730"/>
+ <path d="M0 825 Q230 785 450 830 T900 812"/>
+ <path d="M0 900 Q230 865 450 905 T900 885"/>
+</g>
+<g fill="none" stroke="#5aaed4" stroke-width="5" opacity=".32">
+ <path d="M35 780 Q240 745 460 785 T870 770"/>
+ <path d="M20 870 Q250 840 480 878 T880 862"/>
+</g>
+<!-- tea garden slopes -->
+<path d="M0 1110 Q240 980 480 1080 T900 1030 L900 1800 L0 1800Z" fill="#b8dfca" opacity=".62"/>
+<path d="M0 1220 Q220 1100 450 1190 T900 1145" fill="none" stroke="#70b69d" stroke-width="16" opacity=".52"/>
+<path d="M0 1320 Q230 1190 460 1290 T900 1240" fill="none" stroke="#70b69d" stroke-width="15" opacity=".5"/>
+<path d="M0 1430 Q230 1300 460 1400 T900 1350" fill="none" stroke="#70b69d" stroke-width="15" opacity=".48"/>
+<path d="M0 1540 Q230 1410 460 1510 T900 1460" fill="none" stroke="#70b69d" stroke-width="14" opacity=".46"/>
+<g fill="none" stroke="#e9f7e9" stroke-width="8" opacity=".72">
+ <path d="M0 1160 Q230 1045 460 1145 T900 1095"/>
+ <path d="M0 1270 Q230 1150 460 1255 T900 1205"/>
+ <path d="M0 1380 Q230 1260 460 1365 T900 1315"/>
+ <path d="M0 1490 Q230 1370 460 1475 T900 1425"/>
+ <path d="M0 1600 Q230 1480 460 1585 T900 1535"/>
+</g>
+<!-- Kamakhya-inspired temple silhouette -->
+<g transform="translate(90 970)" fill="#4d9fc8" opacity=".76">
+ <path d="M0 160 H310 V185 H0Z"/>
+ <path d="M25 160 V85 L75 35 L125 85 V160Z"/>
+ <path d="M145 160 V60 Q185 -10 225 60 V160Z"/>
+ <path d="M245 160 V92 L280 55 L315 92 V160Z"/>
+ <path d="M65 35 Q75 0 85 35Z"/>
+ <path d="M170 58 Q185 -25 200 58Z"/>
+ <path d="M270 55 Q280 20 290 55Z"/>
+ <rect x="180" y="-45" width="8" height="45"/>
+ <path d="M188 -42 L235 -27 L188 -12Z"/>
+</g>
+<!-- stylized one-horned rhino on the lower-right -->
+<g transform="translate(450 1510)" fill="#347fae" opacity=".82">
+ <path d="M60 95 Q80 55 145 60 L210 72 Q250 58 300 82 L335 112 L320 135 L280 132 L270 205 L245 205 L240 140 L150 145 L140 205 L115 205 L120 137 L75 132Z"/>
+ <path d="M80 75 Q40 50 15 80 L65 105Z"/>
+ <path d="M18 80 L-10 55 L8 105Z"/>
+ <path d="M185 63 L205 25 L214 70Z"/>
+ <path d="M115 63 L85 35 L102 78Z"/>
+ <path d="M325 108 Q355 90 375 112 L340 130Z"/>
+</g>
+<!-- trees and shrubs -->
+<g fill="#55a99b" opacity=".64">
+ <path d="M20 1030 Q-10 990 20 950 Q45 900 80 945 Q120 900 150 950 Q185 995 145 1030Z"/>
+ <rect x="75" y="1015" width="16" height="90" rx="6"/>
+ <path d="M700 1030 Q670 995 700 955 Q735 905 770 950 Q810 915 835 960 Q870 1000 830 1030Z"/>
+ <rect x="760" y="1015" width="16" height="90" rx="6"/>
+ <path d="M20 1700 Q-5 1660 25 1625 Q55 1590 85 1630 Q115 1595 145 1635 Q175 1675 140 1700Z"/>
+ <rect x="75" y="1685" width="14" height="70"/>
+</g>
+<!-- subtle bird marks -->
+<g fill="none" stroke="#438eb6" stroke-width="6" opacity=".52" stroke-linecap="round">
+ <path d="M610 570 q20 -22 40 0 q20 -22 40 0"/>
+ <path d="M690 530 q16 -18 32 0 q16 -18 32 0"/>
+ <path d="M280 620 q14 -16 28 0 q14 -16 28 0"/>
+</g>
+<rect width="900" height="1800" fill="url(#fade)"/>
+</svg>

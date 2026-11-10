@@ -260,7 +260,13 @@ export default function ApplicationsScreen() {
   const refreshDownloadProgress = async (
     applications: any[] = allApplications
   ) => {
-    const records = await getOfflineDownloadRecords();
+    // const records = await getOfflineDownloadRecords();
+
+    const records = (await getOfflineDownloadRecords()) as Array<{
+      reference_number: string;
+      download_status: string;
+      inspection_date?: string | null;
+    }>;
 
     // The Scheduled count comes from the applications list, not from the
     // download table. A newly scheduled application must count immediately,
@@ -542,7 +548,7 @@ export default function ApplicationsScreen() {
       if (response.data?.success !== true) {
         throw new Error(
           response.data?.message ||
-            "The server did not confirm the inspection date."
+          "The server did not confirm the inspection date."
         );
       }
 
@@ -568,7 +574,7 @@ export default function ApplicationsScreen() {
       Alert.alert(
         "Inspection Date Saved",
         response.data?.message ||
-          "The inspection date has been saved successfully."
+        "The inspection date has been saved successfully."
       );
     } catch (error: any) {
       console.log(
@@ -578,8 +584,8 @@ export default function ApplicationsScreen() {
       Alert.alert(
         "Error",
         error?.response?.data?.message ||
-          error?.message ||
-          "Failed to save inspection date."
+        error?.message ||
+        "Failed to save inspection date."
       );
     }
   };
