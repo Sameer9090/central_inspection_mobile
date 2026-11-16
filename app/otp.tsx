@@ -182,7 +182,7 @@ export default function OtpScreen() {
         // Role-based routing
         const userRole = response.data.user?.role_id;
 
-        if (userRole === 1) {
+        if (Number(userRole) === 1) {
           router.replace("/admin-dashboard");
         } else {
           router.replace("/dashboard");

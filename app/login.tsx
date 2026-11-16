@@ -86,7 +86,7 @@ export default function LoginScreen() {
           console.log("LOGIN SCREEN: Existing session found");
           const parsedUser = JSON.parse(user);
 
-          if (parsedUser?.role_id === 1) {
+          if (Number(parsedUser?.role_id) === 1) {
             router.replace("/admin-dashboard");
           } else {
             router.replace("/dashboard");
@@ -96,7 +96,7 @@ export default function LoginScreen() {
         // if (token && user) {
         //   const parsedUser = JSON.parse(user);
 
-        //   if (parsedUser?.role_id === 1) {
+        //   if (Number(parsedUser?.role_id) === 1) {
         //     router.replace("/admin-dashboard");
         //   } else {
         //     router.replace("/dashboard");
@@ -191,7 +191,7 @@ export default function LoginScreen() {
 
         setPassword("");
 
-        if (offlineUser.role_id === 1) {
+        if (Number(offlineUser?.role_id) === 1) {
           router.replace("/admin-dashboard");
         } else {
           router.replace("/dashboard");

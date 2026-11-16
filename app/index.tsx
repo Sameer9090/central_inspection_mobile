@@ -1,9 +1,11 @@
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { hasOfflineCredentials, getOfflineUser } from "../services/offlineAuth";
+import {
+  hasOfflineCredentials,
+  getOfflineUser,
+} from "../services/offlineAuth";
 
 export default function Index() {
   useEffect(() => {
@@ -20,9 +22,19 @@ export default function Index() {
         });
 
         if (token && user) {
-          console.log("ROOT ROUTE: Online session found");
+          const parsedUser = JSON.parse(user);
+          const isAdmin = Number(parsedUser?.role_id) === 1;
 
-          if (mounted) router.replace("/dashboard");
+          console.log("ROOT ROUTE: Online session found", {
+            role_id: parsedUser?.role_id,
+            isAdmin,
+          });
+
+          if (mounted) {
+            router.replace(
+              isAdmin ? "/admin-dashboard" : "/dashboard"
+            );
+          }
           return;
         }
 
@@ -34,7 +46,9 @@ export default function Index() {
         if (offlineAvailable && offlineUser) {
           console.log("ROOT ROUTE: Offline credentials available");
 
-          if (mounted) router.replace("/login");
+          if (mounted) {
+            router.replace("/login");
+          }
           return;
         }
 
