@@ -20,6 +20,10 @@ export default function PreviewForm({
     inspectionASE,
     inspectionContract,
     inspectionMW,
+    inspectionCombined,
+    eodbCommon,
+    eodbAse,
+    combinedInspectionRecord,
     selectedTypes,
     onEdit,
     onSubmit,
@@ -83,7 +87,7 @@ export default function PreviewForm({
                     setEstPhotoUri(uri);
                 }
 
-              
+
             } catch (err) {
                 console.log("Image loading error:", err);
             }
@@ -215,6 +219,18 @@ export default function PreviewForm({
                 </Text>
             </TouchableOpacity>
 
+            {selectedTypes.includes("combined") && (
+                <CombinedPreview
+                    data={inspectionCombined}
+                    eodbCommon={eodbCommon}
+                    eodbAse={eodbAse}
+                    common={common}
+                    inspectionRecord={combinedInspectionRecord}
+                    referenceNumber={application?.appl_ref_no}
+                    onEdit={() => onEdit("combined")}
+                />
+            )}
+
             {selectedTypes.includes("ase") && (
                 <ASEPreview
                     data={inspectionASE}
@@ -283,19 +299,270 @@ function Row({ label, value, valueColor }: any) {
     );
 }
 
+
+// ─── Combined Inspection Preview ───────────────────────────────
+const COMBINED_CHECKLIST_PREVIEW = [
+    {
+        title: "A. Records and Registers", fields: [
+            ["appointment_letters_issued", "Appointment letters issued to workers"],
+            ["attendance_register_maintained", "Muster roll / attendance register maintained"],
+            ["wage_overtime_register_maintained", "Wage register and overtime records maintained"],
+            ["leave_weeklyoff_records_maintained", "Leave and weekly-off records maintained"],
+            ["accident_register_maintained", "Accident and dangerous occurrence register maintained"],
+            ["medical_records_maintained", "Medical examination records maintained"],
+            ["contractor_records_maintained", "Records of contractors and contract workers maintained"],
+            ["fines_deductions_register_maintained", "Register of fines and deductions maintained"],
+        ]
+    },
+    {
+        title: "B. Safety and Health", fields: [
+            ["fire_extinguishers_available", "Fire extinguishers available and accessible"],
+            ["fire_exits_alarm_working", "Fire exits and alarm system working"],
+            ["mock_drills_conducted", "Mock drills conducted and recorded"],
+            ["machinery_guards_in_place", "Machinery guards in place"],
+            ["lifting_machines_tested", "Lifting machines / pressure vessels tested"],
+            ["electrical_installations_safe", "Electrical installations safe"],
+            ["ventilation_lighting_adequate", "Ventilation and lighting adequate"],
+            ["hazardous_process_controls", "Hazardous process controls in place"],
+            ["ppe_provided_and_used", "PPE provided and used"],
+            ["safety_committee_constituted", "Safety committee constituted"],
+            ["safety_officer_appointed", "Safety officer appointed"],
+            ["emergency_plan_displayed", "Emergency plan displayed"],
+            ["first_aid_facility_available", "First-aid facility available"],
+        ]
+    },
+    {
+        title: "C. Welfare Facilities", fields: [
+            ["safe_drinking_water_available", "Safe drinking water available"],
+            ["toilet_facilities_available", "Toilet facilities available"],
+            ["washing_bathing_facilities", "Washing and bathing facilities"],
+            ["canteen_available", "Canteen available"],
+            ["creche_available", "Creche available"],
+            ["rest_room_available", "Rest room / shelter available"],
+            ["migrant_accommodation_adequate", "Migrant worker accommodation adequate"],
+        ]
+    },
+    {
+        title: "D. Working Conditions", fields: [
+            ["working_hours_within_limits", "Working hours within limits"],
+            ["rest_intervals_observed", "Rest intervals observed"],
+            ["overtime_within_limits", "Overtime within limits"],
+            ["weekly_rest_and_leave_given", "Weekly rest and leave provided"],
+            ["annual_health_checkup_conducted", "Annual health check-up conducted"],
+            ["women_night_work_safety_ensured", "Women night-shift safety ensured"],
+            ["wages_paid_on_time", "Wages paid on time"],
+            ["principal_employer_responsibility_discharged", "Principal employer responsibilities discharged"],
+        ]
+    },
+];
+
+function CombinedPreview({ data = {}, eodbCommon, eodbAse, common, inspectionRecord, referenceNumber, onEdit }: any) {
+
+    const [violationPhotoUri, setViolationPhotoUri] = useState("");
+    const [photoError, setPhotoError] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadViolationPhoto = async () => {
+            const photoPath = data?.combined_violation_photo;
+
+            if (!photoPath) {
+                setViolationPhotoUri("");
+                return;
+            }
+
+            setPhotoError(false);
+            setViolationPhotoUri("");
+
+            console.log("Loading Combined violation photo:", photoPath);
+
+            try {
+                const token = await AsyncStorage.getItem("token");
+
+                const res = await API.get("/private-file-base64", {
+                    params: {
+                        path: photoPath,
+                    },
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (isMounted && res.data?.base64) {
+                    setViolationPhotoUri(
+                        `data:${res.data.mime || "image/jpeg"};base64,${res.data.base64}`
+                    );
+                } else if (isMounted) {
+                    setPhotoError(true);
+                }
+
+            } catch (error: any) {
+                console.log("Combined violation photo loading failed:", {
+                    path: photoPath,
+                    status: error?.response?.status,
+                    response: error?.response?.data,
+                    message: error?.message,
+                });
+
+                if (isMounted) {
+                    setPhotoError(true);
+                }
+            }
+        };
+
+        loadViolationPhoto();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [data?.combined_violation_photo]);
+
+    const directions = Array.isArray(data?.combined_directions)
+        ? data.combined_directions
+        : [];
+
+    const rows = (fields: string[][]) => fields.map(([key, label]) => ({
+        label,
+        value: data?.[key] ?? "-",
+        remarks: data?.[`${key}_remarks`] || "",
+    }));
+
+    return (
+        <View style={previewStyles.card}>
+            <Text style={previewStyles.sectionTitle}>Combined Inspection Report</Text>
+
+            <Text style={previewStyles.subSectionTitle}>Inspection Details</Text>
+            <InspectionTable rows={[
+                { label: "UBIN", value: eodbCommon?.ubin },
+                { label: "Reference Number", value: referenceNumber },
+                { label: "Establishment Name", value: eodbCommon?.name_of_the_establishment },
+                { label: "Submission Location", value: eodbCommon?.submission_location },
+                { label: "Inspector Name", value: inspectionRecord?.inspected_by || common?.common_data?.inspector?.name },
+                { label: "Inspector Designation", value: common?.common_data?.inspector?.designation },
+                { label: "Inspection Date", value: inspectionRecord?.inspection_date || common?.common_data?.inspector?.date },
+                { label: "Inspection Time", value: common?.common_data?.inspector?.time },
+                { label: "GPS Latitude", value: common?.common_data?.gps_location?.latitude },
+                { label: "GPS Longitude", value: common?.common_data?.gps_location?.longitude },
+            ]} />
+
+            <Text style={previewStyles.subSectionTitle}>Workforce and Other Details</Text>
+            <InspectionTable rows={[
+                { label: "Registration / License Number", value: data?.registration_number || eodbAse?.registration_number },
+                { label: "Nature of Activity", value: data?.nature_of_activity || eodbAse?.nature_of_business },
+                { label: "Direct Workers", value: data?.combined_workers_direct },
+                { label: "Women Workers", value: data?.combined_women_workers },
+                { label: "Migrant Workers", value: data?.combined_migrant_workers },
+                { label: "Shifts", value: data?.combined_shifts },
+            ]} />
+
+            {COMBINED_CHECKLIST_PREVIEW.map(section => (
+                <View key={section.title} style={previewStyles.combinedChecklistSection}>
+                    <Text style={previewStyles.subSectionTitle}>{section.title}</Text>
+                    {section.fields.map(([key, label], index) => (
+                        <View key={key} style={previewStyles.combinedChecklistItem}>
+                            <View style={previewStyles.combinedChecklistHeader}>
+                                <Text style={previewStyles.combinedChecklistNumber}>{index + 1}.</Text>
+                                <Text style={previewStyles.combinedChecklistLabel}>{label}</Text>
+                            </View>
+                            <View style={previewStyles.combinedFindingRow}>
+                                <Text style={previewStyles.combinedFindingCaption}>Finding</Text>
+                                <Text style={previewStyles.combinedFindingValue}>{data?.[key] || "-"}</Text>
+                            </View>
+                            <View style={previewStyles.combinedRemarksRow}>
+                                <Text style={previewStyles.combinedRemarksCaption}>Remarks / Evidence</Text>
+                                <Text style={previewStyles.combinedRemarksValue}>{data?.[`${key}_remarks`] || "-"}</Text>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            ))}
+
+            <Text style={previewStyles.subSectionTitle}>Inspection Findings</Text>
+            <InspectionTable rows={[
+                { label: "Violations Observed", value: data?.combined_violations_observed },
+                { label: "Imminent Danger", value: data?.combined_imminent_danger },
+                { label: "Compliance Deadline", value: data?.combined_compliance_deadline },
+                { label: "Follow-up Date", value: data?.combined_followup_date },
+                {
+                    label: "Authorised Signatory Name",
+                    value:
+                        common?.common_data?.employer?.authorised_signatory_name ||
+                        data?.authorised_signatory_name,
+                },
+                {
+                    label: "Authorised Signatory Designation",
+                    value:
+                        common?.common_data?.employer?.authorised_signatory_designation ||
+                        data?.authorised_signatory_designation,
+                },
+            ]} />
+
+            {data?.combined_violation_photo ? (
+                <View style={{ marginTop: 15, marginBottom: 15 }}>
+                    <Text style={previewStyles.subSectionTitle}>
+                        Violation Evidence Photo
+                    </Text>
+
+                    {violationPhotoUri ? (
+                        <Image
+                            source={{ uri: violationPhotoUri }}
+                            style={{
+                                width: "100%",
+                                height: 230,
+                                borderRadius: 8,
+                                backgroundColor: "#f2f2f2",
+                            }}
+                            resizeMode="contain"
+                        />
+                    ) : photoError ? (
+                        <Text style={previewStyles.remarksText}>
+                            Unable to load violation evidence photo.
+                        </Text>
+                    ) : (
+                        <Text style={previewStyles.remarksText}>
+                            Loading violation evidence photo...
+                        </Text>
+                    )}
+                </View>
+            ) : (
+                <Text style={previewStyles.remarksText}>
+                    Violation evidence photo: Not provided
+                </Text>
+            )}
+
+            {directions.length > 0 && (
+                <>
+                    <Text style={previewStyles.subSectionTitle}>Directions</Text>
+                    {directions.map((direction: any, index: number) => (
+                        <Text key={index} style={previewStyles.bulletItem}>
+                            • {typeof direction === "string" ? direction : direction?.direction || "-"}
+                        </Text>
+                    ))}
+                </>
+            )}
+
+            <TouchableOpacity style={previewStyles.editButton} onPress={onEdit}>
+                <Text style={previewStyles.editText}>✏ Edit Combined Inspection</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
+
 // ─── ASE Preview ───────────────────────────────────────────────
 function ASEPreview({ data, onEdit }: any) {
     // ── Establishment / Employer Details ──
     const establishmentRows = [
         { label: "Name and address of Employer / Proprietor / Managing Director / Partner / Manager / Contractor", value: data?.name_address_of_employer },
         { label: "Name and Address of the Establishment", value: data?.establishment_name },
-         { label: "Labour Identification Number (LIN)", value: data?.lin },
+        { label: "Labour Identification Number (LIN)", value: data?.lin },
         { label: "Date of Application", value: data?.date_of_application },
         { label: "Nature of Business", value: data?.nature_of_business },
-         { label: "Number of Employees", value: data?.no_of_employees },
-         { label: "Category of Business", value: data?.category_of_business },
+        { label: "Number of Employees", value: data?.no_of_employees },
+        { label: "Category of Business", value: data?.category_of_business },
         { label: "Date of expiry of previous license", value: data?.date_of_expiry_previous_license },
-         {label: "No. of workers mentioned in previous license", value: data?.previous_license_worker_count },
+        { label: "No. of workers mentioned in previous license", value: data?.previous_license_worker_count },
         { label: "Contact Number and e-mail", value: data?.contact_number_email },
         { label: "Date of Commencement of business", value: data?.date_of_commencement },
         { label: "Opening and closing hours (under Sec-34)", value: data?.opening_and_closing_hours },
@@ -849,6 +1116,68 @@ const previewStyles = StyleSheet.create({
         color: "#444",
         marginBottom: 4,
         paddingLeft: 4,
+    },
+    combinedChecklistSection: {
+        marginBottom: 12,
+    },
+    combinedChecklistItem: {
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#e2e2e2",
+        borderRadius: 8,
+        padding: 11,
+        marginBottom: 9,
+    },
+    combinedChecklistHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginBottom: 8,
+    },
+    combinedChecklistNumber: {
+        width: 25,
+        color: "#1a1a4e",
+        fontWeight: "700",
+        fontSize: 14,
+    },
+    combinedChecklistLabel: {
+        flex: 1,
+        color: "#333",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    combinedFindingRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#f5f7fb",
+        borderRadius: 6,
+        padding: 8,
+        marginBottom: 6,
+    },
+    combinedFindingCaption: {
+        color: "#555",
+        fontSize: 12,
+        fontWeight: "600",
+    },
+    combinedFindingValue: {
+        color: "#16803c",
+        fontSize: 13,
+        fontWeight: "700",
+    },
+    combinedRemarksRow: {
+        paddingHorizontal: 8,
+        paddingTop: 3,
+    },
+    combinedRemarksCaption: {
+        color: "#555",
+        fontSize: 12,
+        fontWeight: "700",
+        marginBottom: 3,
+    },
+    combinedRemarksValue: {
+        color: "#333",
+        fontSize: 13,
+        lineHeight: 18,
     },
     remarksText: {
         fontSize: 13,

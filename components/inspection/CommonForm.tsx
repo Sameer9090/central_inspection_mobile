@@ -79,11 +79,27 @@ export default function CommonForm({
   const [district, setDistrict] = useState(normalizedDistrict);
   const [wardNo, setWardNo] = useState(common?.common_data?.establishment?.ward_no || "");
   const [pincode, setPincode] = useState(common?.common_data?.establishment?.pincode || eodbCommon?.establishment?.pincode || "");
+  const [combined, setCombined] = useState(common?.selected_types?.includes("combined") || false);
   const [ase, setAse] = useState(common?.selected_types?.includes("ase") || false);
   const [contract, setContract] = useState(common?.selected_types?.includes("contract") || false);
   const [minimumWage, setMinimumWage] = useState(common?.selected_types?.includes("minimumwage") || false);
   const [dateOfInspection, setDateOfInspection] = useState(
     common?.common_data?.inspector?.date || new Date().toISOString().split("T")[0],
+  );
+  const [timeOfInspection, setTimeOfInspection] = useState(
+    common?.common_data?.inspector?.time ||
+    (() => {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    })()
+  );
+  const [authorisedSignatoryName, setAuthorisedSignatoryName] = useState(
+    common?.common_data?.employer?.authorised_signatory_name || "",
+  );
+  const [authorisedSignatoryDesignation, setAuthorisedSignatoryDesignation] = useState(
+    common?.common_data?.employer?.authorised_signatory_designation || "",
   );
   const [panchayat, setPanchayat] = useState(common?.common_data?.establishment?.panchayat || "");
   const [submissionLocation, setSubmissionLocation] = useState(
@@ -97,7 +113,9 @@ export default function CommonForm({
   );
 
   const [gpsStatus, setGpsStatus] = useState<"idle" | "waiting" | "success" | "failed" | "no_gps_in_photo">("idle");
-
+  useEffect(() => {
+    console.log("CIS COMMON FORM LOADED");
+  }, []);
   // ─── Load existing previews on mount ───
   useEffect(() => {
     const loadData = async () => {
@@ -349,15 +367,24 @@ export default function CommonForm({
 
     try {
       const formSelector: string[] = [];
+      if (combined) formSelector.push("combined");
       if (ase) formSelector.push("ase");
       if (contract) formSelector.push("contract");
       if (minimumWage) formSelector.push("minimumwage");
+
+      // TEMPORARY DEBUG: Check inspector signature value
+      const signatureDebug = inspectorSignPath;
+
 
       const payload = {
         application_ref_no: application?.appl_ref_no,
         name_of_the_establishment: application?.name_of_the_establishment,
         name_of_inspector: `${user?.firstname || ""} ${user?.lastname || ""}`.trim(),
+        inspector_designation: user?.designation || "",
         date_of_inspection: dateOfInspection,
+        time_of_inspection: timeOfInspection,
+        authorised_signatory_name: authorisedSignatoryName,
+        authorised_signatory_designation: authorisedSignatoryDesignation,
         empl_first_name: firstName,
         empl_last_name: lastName,
         empl_mobile_no: mobile,
@@ -381,9 +408,32 @@ export default function CommonForm({
         latitude: extractedGps.latitude,
         longitude: extractedGps.longitude,
         gps_source: 'photo_exif',
+
       };
 
+      const getDebugValue = (value: any) => {
+        if (value === null || value === undefined) {
+          return "Empty";
+        }
+
+        if (typeof value === "object") {
+          return `Object | Keys: ${Object.keys(value).join(", ")}`;
+        }
+
+        return `${typeof value} | ${String(value).substring(0, 120)}`;
+      };
+
+      // Alert.alert(
+      //   "Upload Data Debug",
+      //   `Inspector Signature:\n${getDebugValue(payload.inspector_sign_path)}\n\n` +
+      //   `Establishment Photo:\n${getDebugValue(payload.inspection_photo_path)}`
+      // );
+
       await onSave(payload);
+      console.log("AUTHORISED SIGNATORY DEBUG:", {
+        name: payload.authorised_signatory_name,
+        designation: payload.authorised_signatory_designation,
+      });
     } catch (error: any) {
       if (error?.response?.status === 422) {
         setErrors(error.response.data.errors || {});
@@ -473,6 +523,14 @@ export default function CommonForm({
         placeholder="YYYY-MM-DD"
       />
       {getFieldError("date_of_inspection") ? <Text style={styles.fieldError}>{getFieldError("date_of_inspection")}</Text> : null}
+
+      <Text style={styles.label}>Time of Inspection</Text>
+      <TextInput
+        style={styles.input}
+        value={timeOfInspection}
+        onChangeText={setTimeOfInspection}
+        placeholder="HH:MM"
+      />
 
       {/* Employer Details */}
       <Text style={styles.heading}>Employer Details</Text>
@@ -702,6 +760,10 @@ export default function CommonForm({
 
       <Text style={styles.heading}>Inspection Types <Text style={styles.required}>*</Text></Text>
       <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
+        <Text>Combined Inspection</Text>
+        <Switch value={combined} onValueChange={setCombined} />
+      </View>
+      <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
         <Text>ASE</Text>
         <Switch value={ase} onValueChange={setAse} />
       </View>
@@ -714,6 +776,30 @@ export default function CommonForm({
         <Switch value={minimumWage} onValueChange={setMinimumWage} />
       </View>
       {getFieldError("form_selector") ? <Text style={styles.fieldError}>{getFieldError("form_selector")}</Text> : null}
+
+      {/* Authorised Signatory Details — present in the Blade common section */}
+      <Text style={styles.heading}>Authorised Signatory Details</Text>
+      <Text style={styles.label}>Authorised Signatory Name <Text style={styles.required}>*</Text></Text>
+      <TextInput
+        style={[styles.input, hasFieldError("authorised_signatory_name") && styles.inputError]}
+        value={authorisedSignatoryName}
+        onChangeText={setAuthorisedSignatoryName}
+        placeholder="Enter authorised signatory name"
+      />
+      {getFieldError("authorised_signatory_name") ? (
+        <Text style={styles.fieldError}>{getFieldError("authorised_signatory_name")}</Text>
+      ) : null}
+
+      <Text style={styles.label}>Authorised Signatory Designation <Text style={styles.required}>*</Text></Text>
+      <TextInput
+        style={[styles.input, hasFieldError("authorised_signatory_designation") && styles.inputError]}
+        value={authorisedSignatoryDesignation}
+        onChangeText={setAuthorisedSignatoryDesignation}
+        placeholder="Enter designation"
+      />
+      {getFieldError("authorised_signatory_designation") ? (
+        <Text style={styles.fieldError}>{getFieldError("authorised_signatory_designation")}</Text>
+      ) : null}
 
       <Text style={styles.heading}>Uploads</Text>
 

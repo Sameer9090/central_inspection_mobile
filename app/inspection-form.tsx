@@ -14,7 +14,7 @@ import {
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
-
+import CombinedForm from "../components/inspection/CombinedForm";
 import ASEForm from "../components/inspection/ASEForm";
 import CommonForm from "../components/inspection/CommonForm";
 import ContractLabourForm from "../components/inspection/ContractLabourForm";
@@ -42,13 +42,14 @@ export default function InspectionFormScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [gpsAcquiring, setGpsAcquiring] = useState(false);
-
+  const [inspectionCombined, setInspectionCombined] = useState<any>({});
+  const [combinedInspectionRecord, setCombinedInspectionRecord] = useState<any>(null);
   // Step tracking from backend
   const [currentStep, setCurrentStep] = useState<string>("common");
   const [sectionsStatus, setSectionsStatus] = useState<Record<string, boolean>>({});
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [eodbCommon, setEodbCommon] = useState<string[]>([]);
-  const [eodbAse, setEodbAse] = useState<string[]>([]);
+  const [eodbCommon, setEodbCommon] = useState<any>(null);
+  const [eodbAse, setEodbAse] = useState<any>(null);
   useEffect(() => {
     loadApplication();
   }, []);
@@ -77,6 +78,13 @@ export default function InspectionFormScreen() {
       const mw = response.data.inspections?.find(
         (item: any) => item.inspection_type === "MINIMUMWAGE",
       );
+
+      const combined = response.data.inspections?.find(
+        (item: any) => item.inspection_type === "COMBINED",
+      );
+
+      setInspectionCombined(combined?.inspection_data || {});
+      setCombinedInspectionRecord(combined || null);
 
       setinspectionASE(ase?.inspection_data || {});
       setinspectionContract(contract?.inspection_data || {});
@@ -200,7 +208,8 @@ export default function InspectionFormScreen() {
           key === 'adolescent_details_ase' ||
           key === 'adolescent_details_contract' ||
           key === 'adolescent_details_minimumwage' ||
-          key === 'workers_detail_mw') {
+          key === 'workers_detail_mw' ||
+          key === 'combined_violation_photo') {
           return;
         }
 
@@ -237,6 +246,19 @@ export default function InspectionFormScreen() {
         }
       });
 
+      // Handle Combined Inspection violation photo as a multipart file.
+      if (
+        sectionType === "combined" &&
+        formData.combined_violation_photo?.uri
+      ) {
+        const photo = formData.combined_violation_photo;
+        payload.append("combined_violation_photo", {
+          uri: photo.uri,
+          name: photo.name || "combined_violation_photo.jpg",
+          type: photo.mimeType || photo.type || "image/jpeg",
+        } as any);
+      }
+
       // Handle MW individual workers with EXPLICIT indices
       if (sectionType === 'minimumwage' && formData.workers_detail_mw) {
         formData.workers_detail_mw.forEach((worker: any, index: number) => {
@@ -258,7 +280,7 @@ export default function InspectionFormScreen() {
       const response = await API.post("/section/save", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+          // 'Content-Type': 'multipart/form-data',
         },
       });
 
@@ -567,6 +589,23 @@ export default function InspectionFormScreen() {
             sectionsStatus={sectionsStatus}
           />
         );
+
+      case "combined":
+        return (
+          <CombinedForm
+            inspectionCombined={inspectionCombined}
+            user={user}
+            onSave={(data) => handleSectionSave("combined", data)}
+            onBack={handleBack}
+            currentStep={currentStep}
+            sectionsStatus={sectionsStatus}
+            referenceNumber={String(refNo)}
+            eodbCommon={eodbCommon}
+            eodbAse={eodbAse}
+            common={common}
+            inspectionRecord={combinedInspectionRecord}
+          />
+        );
       case "ase":
         return (
           <ASEForm
@@ -611,6 +650,10 @@ export default function InspectionFormScreen() {
             inspectionASE={inspectionASE}
             inspectionContract={inspectionContract}
             inspectionMW={inspectionMW}
+            inspectionCombined={inspectionCombined}
+            eodbCommon={eodbCommon}
+            eodbAse={eodbAse}
+            combinedInspectionRecord={combinedInspectionRecord}
             selectedTypes={selectedTypes}
             onEdit={(step: string) => setCurrentStep(step)}
             onSubmit={handleFinalSubmit}
@@ -636,6 +679,7 @@ export default function InspectionFormScreen() {
   const getStepLabel = (step: string) => {
     const labels: Record<string, string> = {
       common: "Common Details",
+      combined: "Combined Inspection",
       ase: "ASE Inspection",
       contract: "Contract Labour",
       minimumwage: "Minimum Wage",
@@ -741,6 +785,7 @@ function StepProgressIndicator({
 }) {
   const steps = [
     { key: "common", label: "Common", icon: "📋" },
+    { key: "combined", label: "Combined", icon: "🏭" },
     { key: "ase", label: "ASE", icon: "🏭" },
     { key: "contract", label: "Contract", icon: "📝" },
     { key: "minimumwage", label: "Min. Wage", icon: "💰" },
