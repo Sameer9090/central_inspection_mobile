@@ -470,7 +470,7 @@ export default function CommonForm({
         style={[styles.input, hasFieldError("date_of_inspection") && styles.inputError]}
         value={dateOfInspection}
         onChangeText={setDateOfInspection}
-        placeholder="YYYY-MM-DD"
+        placeholder="YYYY-MM-DD" placeholderTextColor="#726b6b"
       />
       {getFieldError("date_of_inspection") ? <Text style={styles.fieldError}>{getFieldError("date_of_inspection")}</Text> : null}
 
@@ -481,7 +481,7 @@ export default function CommonForm({
         style={[styles.input, hasFieldError("empl_first_name") && styles.inputError]}
         value={firstName}
         onChangeText={setFirstName}
-        placeholder="Enter first name"
+        placeholder="Enter first name" placeholderTextColor="#726b6b"
       />
       {getFieldError("empl_first_name") ? <Text style={styles.fieldError}>{getFieldError("empl_first_name")}</Text> : null}
 
@@ -490,7 +490,7 @@ export default function CommonForm({
         style={[styles.input, hasFieldError("empl_last_name") && styles.inputError]}
         value={lastName}
         onChangeText={setLastName}
-        placeholder="Enter last name"
+        placeholder="Enter last name" placeholderTextColor="#726b6b"
       />
       {getFieldError("empl_last_name") ? <Text style={styles.fieldError}>{getFieldError("empl_last_name")}</Text> : null}
 
@@ -500,7 +500,7 @@ export default function CommonForm({
         keyboardType="phone-pad"
         value={mobile}
         onChangeText={setMobile}
-        placeholder="Enter mobile number"
+        placeholder="Enter mobile number" placeholderTextColor="#726b6b"
         maxLength={10}
       />
       {getFieldError("empl_mobile_no") ? <Text style={styles.fieldError}>{getFieldError("empl_mobile_no")}</Text> : null}
@@ -511,7 +511,7 @@ export default function CommonForm({
         keyboardType="phone-pad"
         value={alternateMobile}
         onChangeText={setAlternateMobile}
-        placeholder="Enter alternate mobile"
+        placeholder="Enter alternate mobile" placeholderTextColor="#726b6b"
         maxLength={10}
       />
 
@@ -521,7 +521,7 @@ export default function CommonForm({
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        placeholder="Enter email"
+        placeholder="Enter email" placeholderTextColor="#726b6b"
       />
 
       {/* Establishment Details */}
@@ -531,7 +531,7 @@ export default function CommonForm({
         style={[styles.input, hasFieldError("est_address_1") && styles.inputError]}
         value={address1}
         onChangeText={setAddress1}
-        placeholder="Enter address line 1"
+        placeholder="Enter address line 1" placeholderTextColor="#726b6b"
       />
       {getFieldError("est_address_1") ? <Text style={styles.fieldError}>{getFieldError("est_address_1")}</Text> : null}
 
@@ -540,7 +540,7 @@ export default function CommonForm({
         style={[styles.input, hasFieldError("est_address_2") && styles.inputError]}
         value={address2}
         onChangeText={setAddress2}
-        placeholder="Enter address line 2"
+        placeholder="Enter address line 2" placeholderTextColor="#726b6b"
       />
       {getFieldError("est_address_2") ? <Text style={styles.fieldError}>{getFieldError("est_address_2")}</Text> : null}
 
@@ -549,7 +549,7 @@ export default function CommonForm({
         style={styles.input}
         value={address3}
         onChangeText={setAddress3}
-        placeholder="Enter address line 3"
+        placeholder="Enter address line 3" placeholderTextColor="#726b6b"
       />
 
       <Text style={styles.label}>Landmark <Text style={styles.required}>*</Text></Text>
@@ -557,7 +557,7 @@ export default function CommonForm({
         style={[styles.input, hasFieldError("est_landmark") && styles.inputError]}
         value={landmark}
         onChangeText={setLandmark}
-        placeholder="Enter landmark"
+        placeholder="Enter landmark" placeholderTextColor="#726b6b"
       />
       {getFieldError("est_landmark") ? <Text style={styles.fieldError}>{getFieldError("est_landmark")}</Text> : null}
       <Text style={styles.label}>
@@ -567,7 +567,7 @@ export default function CommonForm({
       <TextInput
         style={styles.input}
         value="Assam"
-        editable={false}
+        editable={false} placeholderTextColor="#b3a9a9"
       />
       <Text style={styles.label}>District <Text style={styles.required}>*</Text></Text>
       <View style={[styles.input, hasFieldError("est_district") && styles.inputError, { padding: 0 }]}>
@@ -632,7 +632,7 @@ export default function CommonForm({
         ]}
         value={wardNo}
         onChangeText={setWardNo}
-        placeholder="Enter ward number"
+        placeholder="Enter ward number" placeholderTextColor="#726b6b"
       />
 
       {getFieldError("est_ward_no") ? (
@@ -653,12 +653,11 @@ export default function CommonForm({
             ]}
             value={panchayat}
             onChangeText={setPanchayat}
-            placeholder="Enter panchayat"
+            placeholder="Enter panchayat" placeholderTextColor="#726b6b"
           />
 
           {getFieldError("panchayat") ? (
             <Text style={styles.fieldError}>
-              {getFieldError("panchayat")}
             </Text>
           ) : null}
         </>
@@ -679,7 +678,7 @@ export default function CommonForm({
           setPincode(text.replace(/[^0-9]/g, "").slice(0, 6));
         }}
         placeholder="Enter pincode"
-        keyboardType="number-pad"
+        keyboardType="number-pad" placeholderTextColor="#b3a9a9"
         maxLength={6}
       />
 

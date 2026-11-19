@@ -192,7 +192,7 @@ export default function DashboardScreen() {
   const getStatCards = (): StatCard[] => {
     const allCards: StatCard[] = [
       { title: "APPLICATIONS IN QUEUE", value: stats.applications_in_queue, icon: Icons.FileText, color: "#4A90D9", route: "/applications" },
-      { title: "APPLICATIONS FORWARDED", value: stats.applications_forwarded, icon: Icons.Send, color: "#7B68EE", route: "/applications/forwarded" },
+      // { title: "APPLICATIONS FORWARDED", value: stats.applications_forwarded, icon: Icons.Send, color: "#7B68EE", route: "/applications/forwarded" },
       {
         title: "TRACK APPLICATIONS",
         value: "",

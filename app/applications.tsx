@@ -174,7 +174,7 @@ export default function ApplicationsScreen() {
     return (
       <SafeAreaView
         style={[styles.container, styles.center]}
-        edges={[ "left", "right"]}
+        edges={["left", "right"]}
       >
 
         <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
@@ -185,7 +185,7 @@ export default function ApplicationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[ "left", "right","bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a4e" />
 
       {/* ✅ FIXED: AppHeader at top */}
@@ -401,7 +401,11 @@ function ApplicationCard({
 }: {
   item: any;
   index: number;
-  onSave: (refNo: string, date: string, onSuccess: () => void) => void;
+  onSave: (
+    refNo: string,
+    date: string,
+    onSuccess: () => void
+  ) => Promise<void>;
 }) {
   const [inspectionDate, setInspectionDate] = useState(
     item.inspection_scheduled_on || "",
@@ -410,6 +414,7 @@ function ApplicationCard({
   const [isDateSaved, setIsDateSaved] = useState(
     !!item.inspection_scheduled_on,
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   const cardAnim = useRef(new Animated.Value(0)).current;
 
@@ -422,12 +427,25 @@ function ApplicationCard({
     }).start();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!inspectionDate) {
       Alert.alert("Validation", "Please select an inspection date");
       return;
     }
-    onSave(item.appl_ref_no, inspectionDate, () => setIsDateSaved(true));
+
+    if (isSaving) return;
+
+    setIsSaving(true);
+
+    try {
+      await onSave(
+        item.appl_ref_no,
+        inspectionDate,
+        () => setIsDateSaved(true)
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -511,40 +529,52 @@ function ApplicationCard({
         {/* Inspection Date Section */}
         <View style={styles.dateSection}>
           <Text style={styles.dateLabel}>Inspection Date</Text>
-
           <TouchableOpacity
-            style={[styles.dateInput, isDateSaved && styles.dateInputSaved]}
-            onPress={() => !isDateSaved && setShowPicker(true)}
-            disabled={isDateSaved}
+            style={[
+              styles.dateInput,
+              isDateSaved && styles.dateInputSaved,
+              isSaving && { opacity: 0.7 },
+            ]}
+            onPress={() => !isDateSaved && !isSaving && setShowPicker(true)}
+            disabled={isDateSaved || isSaving}
             activeOpacity={isDateSaved ? 1 : 0.7}
           >
             <View style={styles.dateInputLeft}>
-              <Feather
-                name="calendar"
-                size={14}
-                color={isDateSaved ? "#2ECC71" : "#1a1a4e"}
-              />
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#1a1a4e" />
+              ) : (
+                <Feather
+                  name="calendar"
+                  size={14}
+                  color={isDateSaved ? "#2ECC71" : "#1a1a4e"}
+                />
+              )}
+
               <Text
                 style={[
                   styles.dateInputText,
                   isDateSaved && styles.dateInputTextSaved,
                 ]}
               >
-                {inspectionDate
-                  ? new Date(inspectionDate).toLocaleDateString("en-GB", {
+                {isSaving
+                  ? "Saving date..."
+                  : inspectionDate
+                    ? new Date(inspectionDate).toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                     })
-                  : "Select Date"}
+                    : "Select Date"}
               </Text>
             </View>
-            {isDateSaved && (
+
+            {isDateSaved && !isSaving && (
               <View style={styles.savedIcon}>
                 <Feather name="check-circle" size={16} color="#2ECC71" />
               </View>
             )}
           </TouchableOpacity>
+          
 
           {showPicker && !isDateSaved && (
             <DateTimePicker
