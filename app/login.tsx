@@ -41,6 +41,33 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const testServerConnection = async () => {
+    const urls = [
+      "https://abocwwb.assam.gov.in/",
+      "https://col-inspection.assam.gov.in/",
+    ];
+
+    for (const url of urls) {
+      try {
+        console.log("Testing:", url);
+
+        const response = await fetch(url, {
+          method: "GET",
+        });
+
+        console.log("SUCCESS:", url);
+        console.log("STATUS:", response.status);
+      } catch (error: any) {
+        console.log("FAILED:", url);
+        console.log("ERROR:", error.message);
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    testServerConnection();
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
