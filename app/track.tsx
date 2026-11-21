@@ -406,12 +406,14 @@ export default function TrackScreen() {
                     </View>
                 )}
 
-                <ReminderModal
-                    visible={showReminder}
-                    onClose={() => setShowReminder(false)}
-                    receiverId={selectedApplication?.receiverId}
-                    applRefNo={selectedApplication?.applRefNo}
-                />
+                {selectedApplication && (
+                    <ReminderModal
+                        visible={showReminder}
+                        onClose={() => setShowReminder(false)}
+                        receiverId={selectedApplication.receiverId}
+                        applRefNo={selectedApplication.applRefNo}
+                    />
+                )}
             </SafeAreaView>
         </>
     );

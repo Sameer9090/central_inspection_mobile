@@ -58,17 +58,49 @@ const CONTRACT_PROVISIONS = [
   { key: 'whether_wage_slips_formxix_issued', label: 'Whether wage slips in Form XIX issued before wage disbursement [Section 33(c)]' },
 ];
 
-export default function ContractSection({ data, onChange, onSave, onBack, saving }) {
+type ContractAdolescent = {
+  labour_office_intimation?: string;
+  name?: string;
+  address?: string;
+  age?: string | number;
+  hazardous_work?: string;
+  working_hours?: string;
+  maintain_register?: string;
+  wage_amount?: string | number;
+  [key: string]: unknown;
+};
+
+type ContractSectionData = Record<string, any> & {
+  adolescent_details_contract?: ContractAdolescent[];
+  contract_directions?: string[];
+  is_adolescent_employed_contract?: string;
+};
+
+type ContractSectionProps = {
+  data: ContractSectionData;
+  onChange: React.Dispatch<React.SetStateAction<ContractSectionData>>;
+  onSave?: () => void;
+  onBack?: () => void;
+  saving?: boolean;
+};
+
+export default function ContractSection({
+  data,
+  onChange,
+  onSave,
+  onBack,
+  saving,
+}: ContractSectionProps) {
   const [showAdolescent, setShowAdolescent] = useState(data.is_adolescent_employed_contract === 'Yes');
 
-  const updateField = (field, value) => {
+  const updateField = (field: string, value: string) => {
     onChange(prev => ({ ...prev, [field]: value }));
     if (field === 'is_adolescent_employed_contract') {
       setShowAdolescent(value === 'Yes');
     }
   };
 
-  const toggleCheckbox = (field) => {
+  const toggleCheckbox = (field: string) => {
     const current = data[field] === 'Yes' ? 'No' : 'Yes';
     updateField(field, current);
   };
@@ -84,14 +116,14 @@ export default function ContractSection({ data, onChange, onSave, onBack, saving
     }));
   };
 
-  const removeAdolescent = (index) => {
-    const current = [...data.adolescent_details_contract];
+  const removeAdolescent = (index: number) => {
+    const current = [...(data.adolescent_details_contract || [])];
     current.splice(index, 1);
     onChange(prev => ({ ...prev, adolescent_details_contract: current }));
   };
 
-  const updateAdolescent = (index, field, value) => {
-    const current = [...data.adolescent_details_contract];
+  const updateAdolescent = (index: number, field: string, value: string) => {
+    const current = [...(data.adolescent_details_contract || [])];
     current[index] = { ...current[index], [field]: value };
     onChange(prev => ({ ...prev, adolescent_details_contract: current }));
   };
@@ -101,14 +133,14 @@ export default function ContractSection({ data, onChange, onSave, onBack, saving
     onChange(prev => ({ ...prev, contract_directions: [...current, ''] }));
   };
 
-  const removeDirection = (index) => {
-    const current = [...data.contract_directions];
+  const removeDirection = (index: number) => {
+    const current = [...(data.contract_directions || [""])];
     current.splice(index, 1);
     onChange(prev => ({ ...prev, contract_directions: current }));
   };
 
-  const updateDirection = (index, value) => {
-    const current = [...data.contract_directions];
+  const updateDirection = (index: number, value: string) => {
+    const current = [...(data.contract_directions || [""])];
     current[index] = value;
     onChange(prev => ({ ...prev, contract_directions: current }));
   };

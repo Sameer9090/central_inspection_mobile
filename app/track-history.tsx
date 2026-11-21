@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -5,14 +6,12 @@ import {
     StyleSheet,
     Text,
     View,
+    TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
-
 import { router, useLocalSearchParams } from "expo-router";
-import { TouchableOpacity } from "react-native";
 import StatusBadge from "../components/track/StatusBadge";
-
 import { getHistory } from "../services/historyService";
 
 export default function TrackHistoryScreen() {
@@ -49,114 +48,104 @@ export default function TrackHistoryScreen() {
 
     return (
         <>
-        <AppHeader />
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
+            <AppHeader />
 
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={styles.backButton}
-                >
-                    <Text style={styles.backArrow}>←</Text>
-                </TouchableOpacity>
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={styles.backButton}
+                    >
+                        <Text style={styles.backArrow}>←</Text>
+                    </TouchableOpacity>
 
-                <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.headerTitle}>
+                            Application History
+                        </Text>
 
-                    <Text style={styles.headerTitle}>
-                        Application History
-                    </Text>
-
-                    <Text style={styles.refNo}>
-                        {applRefNo}
-                    </Text>
-
+                        <Text style={styles.refNo}>
+                            {applRefNo}
+                        </Text>
+                    </View>
                 </View>
 
-            </View>
-            <FlatList
-                data={history}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item, index }) => (
+                <FlatList
+                    data={history}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item, index }) => (
+                        <View style={styles.timelineRow}>
+                            <View style={styles.timeline}>
+                                <View style={styles.circle} />
 
-                    <View style={styles.timelineRow}>
-
-                        <View style={styles.timeline}>
-
-                            <View style={styles.circle} />
-
-                            {index !== history.length - 1 && (
-                                <View style={styles.line} />
-                            )}
-
-                        </View>
-
-                        <View style={styles.card}>
-
-                            <StatusBadge status={item.status} />
-
-                            <Text style={styles.date}>
-                                {item.date}
-                            </Text>
-
-                            <View style={styles.locationBox}>
-                                <Text style={styles.locationText}>
-                                    📍 {item.submissionLocation}
-                                </Text>
+                                {index !== history.length - 1 && (
+                                    <View style={styles.line} />
+                                )}
                             </View>
 
-                            <Text style={styles.heading}>
-                                Remarks
-                            </Text>
+                            <View style={styles.card}>
+                                <StatusBadge status={item.status} />
 
-                            <Text style={styles.value}>
-                                {item.remarks}
-                            </Text>
+                                <Text style={styles.date}>
+                                    {item.date}
+                                </Text>
 
-                            <View style={styles.separator} />
+                                <View style={styles.locationBox}>
+                                    <Text style={styles.locationText}>
+                                        📍 {item.submissionLocation}
+                                    </Text>
+                                </View>
 
-                            <Text style={styles.heading}>
-                                FROM
-                            </Text>
+                                <Text style={styles.heading}>
+                                    Remarks
+                                </Text>
 
-                            <Text style={styles.person}>
-                                {item.senderName}
-                            </Text>
+                                <Text style={styles.value}>
+                                    {item.remarks}
+                                </Text>
 
-                            <Text style={styles.role}>
-                                {item.senderRole}
-                            </Text>
+                                <View style={styles.separator} />
 
-                            <Text style={styles.office}>
-                                {item.senderOffice}
-                            </Text>
+                                <Text style={styles.heading}>
+                                    FROM
+                                </Text>
 
-                            <Text style={styles.arrow}>
-                                ↓
-                            </Text>
+                                <Text style={styles.person}>
+                                    {item.senderName}
+                                </Text>
 
-                            <Text style={styles.heading}>
-                                TO
-                            </Text>
+                                <Text style={styles.role}>
+                                    {item.senderRole}
+                                </Text>
 
-                            <Text style={styles.person}>
-                                {item.receiverName}
-                            </Text>
+                                <Text style={styles.office}>
+                                    {item.senderOffice}
+                                </Text>
 
-                            <Text style={styles.role}>
-                                {item.receiverRole}
-                            </Text>
+                                <Text style={styles.arrow}>
+                                    ↓
+                                </Text>
 
-                            <Text style={styles.office}>
-                                {item.receiverOffice}
-                            </Text>
+                                <Text style={styles.heading}>
+                                    TO
+                                </Text>
 
+                                <Text style={styles.person}>
+                                    {item.receiverName}
+                                </Text>
+
+                                <Text style={styles.role}>
+                                    {item.receiverRole}
+                                </Text>
+
+                                <Text style={styles.office}>
+                                    {item.receiverOffice}
+                                </Text>
+                            </View>
                         </View>
-
-                    </View>
-
-                )}
-            />
-        </SafeAreaView>
+                    )}
+                />
+            </SafeAreaView>
         </>
     );
 }
@@ -186,24 +175,26 @@ const styles = StyleSheet.create({
         marginBottom: 5,
         fontSize: 16,
     },
+
     heading: {
-        marginTop: 12,
+        marginTop: 15,
         fontWeight: "700",
         color: "#64748B",
-        fontSize: 13,
+        fontSize: 12,
         textTransform: "uppercase",
     },
 
     value: {
-        fontSize: 16,
+        fontSize: 15,
         color: "#1E293B",
-        marginTop: 3,
+        marginTop: 4,
     },
 
     subValue: {
         color: "#64748B",
         fontSize: 14,
     },
+
     header: {
         flexDirection: "row",
         alignItems: "center",
@@ -282,19 +273,6 @@ const styles = StyleSheet.create({
     locationText: {
         color: "#2563EB",
         fontWeight: "600",
-    },
-
-    heading: {
-        marginTop: 15,
-        color: "#64748B",
-        fontWeight: "700",
-        fontSize: 12,
-    },
-
-    value: {
-        marginTop: 4,
-        fontSize: 15,
-        color: "#1E293B",
     },
 
     separator: {

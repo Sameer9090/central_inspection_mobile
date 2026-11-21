@@ -1,6 +1,6 @@
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -106,10 +106,6 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  useEffect(() => {
     if (!loading) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -129,7 +125,6 @@ export default function DashboardScreen() {
   const loadDashboard = useCallback(async (submissionLocation?: string | null) => {
     try {
       const token = await AsyncStorage.getItem("token");
-      console.log("token ",token)
       if (!token) {
         router.replace("/login");
         return;
@@ -157,19 +152,33 @@ export default function DashboardScreen() {
         });
       }
     } catch (error: any) {
-      console.log("API Error:", error?.response?.status, error?.response?.data);
+      // Do not log credentials. A network error has no HTTP status and
+      // should not erase the token; the user may be temporarily offline.
       const status = error?.response?.status;
       const message = error?.response?.data?.message || "Failed to load dashboard data";
-      if (status === 404) {
+
+      if (status === 401) {
+        await AsyncStorage.removeItem("token");
+        router.replace("/login");
+      } else if (status === 404) {
         Alert.alert("API Error", "Dashboard endpoint not found. Check your API URL.");
       } else {
-        Alert.alert("Error", message);
+        Alert.alert("Connection Error", "Could not reach the server. Check your connection and try again.");
       }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
+
+  // Refresh dashboard analytics whenever this screen becomes active again.
+  // This picks up inspections submitted from another screen without requiring
+  // the user to pull down to refresh.
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard(selectedSubmissionLocation);
+    }, [loadDashboard, selectedSubmissionLocation])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -180,19 +189,48 @@ export default function DashboardScreen() {
     setSelectedSubmissionLocation(location);
     setLocationModalVisible(false);
     setRefreshing(true);
-    loadDashboard(location);
   };
 
   const logout = async () => {
+    // Log out locally first. The user must be able to leave the account
+    // even when the Laravel server or network is unavailable.
+    setLogoutModalVisible(false);
+
+    let token: string | null = null;
+
     try {
-      setLogoutModalVisible(false);
-      const token = await AsyncStorage.getItem("token");
-      await API.post("/logout", {}, { headers: { Authorization: `Bearer ${token}` } });
+      token = await AsyncStorage.getItem("token");
+    } catch (storageError) {
+      console.warn("Could not read the saved login token.");
+    }
+
+    try {
+      // Remove only the online API token. Preserve cached user/offline
+      // authentication data, SQLite records, drafts and pending inspections.
       await AsyncStorage.removeItem("token");
-      await AsyncStorage.removeItem("user");
-      router.replace("/login");
-    } catch (error) {
-      console.log(error);
+    } catch (storageError) {
+      console.warn("Could not clear the saved login token.");
+      Alert.alert(
+        "Logout issue",
+        "The saved login token could not be cleared. Please try again."
+      );
+      return;
+    }
+
+    // Navigate immediately; do not wait for the server.
+    router.replace("/login");
+
+    // Revoke the server token in the background when connectivity allows.
+    if (token) {
+      API.post(
+        "/logout",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => {
+        // Local logout has already completed. Server revocation can be
+        // retried/handled when the device is online.
+        console.warn("Server logout could not be reached; local logout completed.");
+      });
     }
   };
 
@@ -398,7 +436,7 @@ export default function DashboardScreen() {
                     <Feather name="chevron-down" size={19} color="#536078" />
                   </TouchableOpacity>
                   <Text style={styles.locationEmptyText}>
-                    Select a submission location to view its monthly completion trend and officer performance.
+                    Select a submission location to view its monthly inspection submission trend and officer performance.
                   </Text>
                 </View>
               )}
@@ -421,15 +459,15 @@ export default function DashboardScreen() {
 
               {Array.isArray(analytics.monthly_trends) && analytics.monthly_trends.length > 0 ? (
                 <View style={styles.analyticsPanel}>
-                  <Text style={styles.analyticsPanelTitle}>MONTHLY COMPLETION TREND</Text>
-                  <Text style={styles.analyticsPanelSubtitle}>Number of inspections closed each month</Text>
+                  <Text style={styles.analyticsPanelTitle}>MONTHLY INSPECTION DONE TREND</Text>
+                  <Text style={styles.analyticsPanelSubtitle}>Number of inspection forms submitted each month</Text>
                   {(() => {
-                    const maxCompleted = Math.max(
+                    const maxSubmitted = Math.max(
                       1,
-                      ...analytics.monthly_trends.map((item: any) => Number(item.completed) || 0)
+                      ...analytics.monthly_trends.map((item: any) => Number(item.submitted) || 0)
                     );
                     return analytics.monthly_trends.map((item: any) => {
-                      const completed = Number(item.completed) || 0;
+                      const submitted = Number(item.submitted) || 0;
                       const monthLabel = String(item.month || "").split("-").reverse().join("/");
                       return (
                         <View key={item.month} style={styles.trendRow}>
@@ -438,11 +476,11 @@ export default function DashboardScreen() {
                             <View
                               style={[
                                 styles.trendBar,
-                                { width: `${(completed / maxCompleted) * 100}%` },
+                                { width: `${(submitted / maxSubmitted) * 100}%` },
                               ]}
                             />
                           </View>
-                          <Text style={styles.trendValue}>{completed}</Text>
+                          <Text style={styles.trendValue}>{submitted}</Text>
                         </View>
                       );
                     });
@@ -452,7 +490,7 @@ export default function DashboardScreen() {
                 [2, 3, 4].includes(Number(user?.role_id)) && !selectedSubmissionLocation ? null : (
                   <View style={styles.analyticsPanel}>
                     <Text style={styles.locationEmptyText}>
-                      No monthly completion records found for this submission location.
+                      No inspection forms submitted in the selected period for this submission location.
                     </Text>
                   </View>
                 )
@@ -479,6 +517,12 @@ export default function DashboardScreen() {
                           <View style={styles.officeStat}>
                             <Text style={styles.officeStatValue}>{officer.total_inspections ?? 0}</Text>
                             <Text style={styles.officeStatLabel}>Total</Text>
+                          </View>
+                          <View style={styles.officeStat}>
+                            <Text style={[styles.officeStatValue, { color: "#397CC8" }]}>
+                              {officer.submitted_inspections ?? 0}
+                            </Text>
+                            <Text style={styles.officeStatLabel}>Form Submitted</Text>
                           </View>
                           <View style={styles.officeStat}>
                             <Text style={[styles.officeStatValue, { color: "#16845B" }]}>

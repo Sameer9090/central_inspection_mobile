@@ -596,13 +596,25 @@ function ASEPreview({ data, onEdit }: any) {
         { label: "Maintenance of registers against each employee (Section 25)", value: data?.maintenance_of_registers_ase },
         { label: "Whether annual return is submitted or not? (Section 26)", value: data?.whether_annual_rep_submitted_ase },
         { label: "Has any adolescent been employed?", value: data?.is_adolescent_employed_ase },
+        { label: "Intimation Obtained (Section 7)", value: data?.intimation_obtained_ase },
+        { label: "Overtime Wages Paid for Extra Working Hours (Section 14)", value: data?.overtime_wages_paid_ase },
+        { label: "Annual Leave, Casual Leave, Sick Leave and Other Prescribed Holidays Provided (Section 17)", value: data?.leaves_and_holidays_provided_ase },
+    ];
+
+    const womenNightShiftRows = [
+        { label: "Written Consent Taken", value: data?.women_written_consent_ase },
+        { label: "Women Security Guards Available", value: data?.women_security_guards_ase },
+        { label: "CCTV Available", value: data?.cctv_available_ase },
+        { label: "Transportation Provided", value: data?.transportation_provided_ase },
+        { label: "Separate Restrooms Provided", value: data?.separate_restrooms_ase },
     ];
 
     // ── Adolescent Worker Details ──
     const adolescents = data?.adolescent_details_ase || [];
 
     // ── Directions ──
-    const directions = data?.ase_directions || [];
+    const hasDirections = data?.has_directions_ase || ((data?.ase_directions || []).some((item: any) => String(item ?? "").trim()) ? "Yes" : "No");
+    const directions = hasDirections === "Yes" ? (data?.ase_directions || []) : [];
 
     return (
         <View style={previewStyles.card}>
@@ -613,12 +625,12 @@ function ASEPreview({ data, onEdit }: any) {
             <InspectionTable rows={establishmentRows} />
 
             {/* Workplace Safety and Health Measures */}
-            <Text style={previewStyles.subSectionTitle}>Workplace Safety and Health Measures</Text>
-            <InspectionTable rows={safetyRows} />
-
             {/* Inspection Findings */}
             <Text style={previewStyles.subSectionTitle}>Inspection Findings</Text>
             <InspectionTable rows={findingsRows} />
+
+            <Text style={previewStyles.subSectionTitle}>Engagement of Women Employees in Night Shifts (Section 11(2))</Text>
+            <InspectionTable rows={womenNightShiftRows} />
 
             {/* Adolescent Worker Details */}
             {adolescents.length > 0 && (
@@ -685,9 +697,10 @@ function ASEPreview({ data, onEdit }: any) {
             ]} />
 
             {/* Directions */}
+            <Text style={previewStyles.subSectionTitle}>Directions</Text>
+            <InspectionTable rows={[{ label: "Is there any directions to be mentioned?", value: hasDirections || "-" }]} />
             {directions.length > 0 && (
                 <>
-                    <Text style={previewStyles.subSectionTitle}>Directions</Text>
                     {directions.map((dir: string, idx: number) => (
                         <Text key={idx} style={previewStyles.bulletItem}>• {dir}</Text>
                     ))}
@@ -711,6 +724,7 @@ function renderWorkerTable(data: any, prefix: string, showApprentice = false) {
         { key: "unskilled", label: "Unskilled" },
         { key: "semiskilled", label: "Semi-Skilled" },
         { key: "skilled", label: "Skilled" },
+        { key: "highly_skilled", label: "Highly Skilled" },
     ];
 
     return (
@@ -748,112 +762,95 @@ function renderWorkerTable(data: any, prefix: string, showApprentice = false) {
 
 // ─── Contract Labour Preview ─────────────────────────────────
 function ContractPreview({ data, onEdit }: any) {
-    // Workplace Safety
-    const safetyRows = [
-        { label: "Ensuring proper cleanliness in the workplace", value: data?.cleanliness_workplace_contract },
-        { label: "Providing adequate lighting in all work areas", value: data?.adequate_lighting_contract },
-        { label: "Maintaining proper ventilation", value: data?.proper_ventilation_contract },
-        { label: "Prevention of fire, safety arrangements and emergency preparedness", value: data?.fire_prevention_measures_contract },
-        { label: "Preventive measures to avoid accidents", value: data?.accident_prevention_contract },
+    const contractRows = [
+        { label: "Whether License obtained while executing contract work through contract labour [Section 47]", value: data?.whether_license_obtained },
+        { label: "Whether contract labour exceeds maximum number specified in licence [Section 48]", value: data?.whether_contract_labour_numbering },
+        { label: "Whether notices regarding rates of wages, hours of work, wage period etc. displayed [Section 31(1)]", value: data?.whether_notices_regarding_rates_of_wages },
+        { label: "Whether copy of displayed notices sent to Inspector [Section 31(2)]", value: data?.whether_copy_of_each_notice_displayed },
+        { label: "Whether electronic wage disbursement is maintained and intimated digitally to the Principal Employer with proof? [Section 55(2)]", value: data?.electronic_wage_disbursement_and_digital_intimation_contract },
+        { label: "Whether intimation of commencement/completion submitted within 30 days [Section 5(1)]", value: data?.whether_intimation_of_commencement },
+        { label: "Whether Yearly Return in Form X submitted [Section 33(d)]", value: data?.whether_half_yearly_return },
+        { label: "Whether contractor ensured payment of wages within prescribed time [Section 55(1)]", value: data?.whether_contractor_ensured_payment_of_wages },
+        { label: "Whether register of persons employed maintained [Section 33(a)]", value: data?.whether_register_of_person_maintained },
+        { label: "Whether wage register maintained [Section 33(a)]", value: data?.whether_wage_register_maintained },
+        { label: "Whether welfare facilities provided (water, latrine, washing) [Section 53]", value: data?.whether_welfare_facilities_regarding_drinking_water },
+        { label: "Whether creche facility provided [Section 53]", value: data?.whether_contractor_creche_facility },
+        { label: "Whether canteen facility provided when 100+ contract labour employed [Section 53]", value: data?.whether_contractor_provides_canteen_facility },
+        { label: "Whether rest rooms provided for night halt [Section 53]", value: data?.whether_contractor_prvides_rest_rooms },
+        { label: "Whether first aid facilities provided [Section 53]", value: data?.whether_first_aid_provided },
+        { label: "Whether Letter of Appointment issued to each worker [Section 6(1)(f)]", value: data?.issue_of_appointment_letters_contract },
+        { label: "Whether experience certificate issued on termination [Section 56]", value: data?.whether_contractor_issued_service_certificate },
+        { label: "Whether wage slips in Form XIX issued before wage disbursement [Section 33]", value: data?.whether_wage_slips_formxix_issued },
+        { label: "Whether safe workplace and machinery provided? [Section 6 and Section 18]", value: data?.safe_workplace_and_machinery_contract },
+        { label: "Whether PPE provided? [Section 82(d)]", value: data?.ppe_provided_contract },
+        { label: "Whether fire safety and emergency arrangement provided? [Section 80, 84(4)]", value: data?.fire_prevention_measures_contract },
+        { label: "Whether Safety instructions and training provided? [Section 6(2)(c)]", value: data?.safety_instructions_and_training_contract },
+        { label: "Whether proper cleanliness and hygiene is maintained at the workplace? [Section 23(2)(i)]", value: data?.cleanliness_workplace_contract },
+        { label: "Whether adequate lighting is provided in all work areas? [Section 23(2)(vii)]", value: data?.adequate_lighting_contract },
+        { label: "Whether proper ventilation and suitable temperature are maintained for a healthy working environment? [Section 23(2)(ii)]", value: data?.proper_ventilation_contract },
+        { label: "Whether Identity Cards have been issued to all contract workers? [Section 33(a)]", value: data?.issue_of_identity_card_contract },
+        { label: "Whether the establishment has obtained a valid Establishment Registration Certificate? [Section 3(3)]", value: data?.valid_establishment_registration_certificate_contract },
+        { label: "Whether the Contractor has intimated the Principal Employer upon receiving the Work Order? [Section 50(1)]", value: data?.contractor_work_order_intimation_to_principal_employer_contract },
+        { label: "Whether documentary proof (bank statements/NEFT records) of electronic wage payment is maintained? [Section 55(2)]", value: data?.electronic_wage_payment_documentary_proof_contract },
+        { label: "Whether leave and holiday registers are maintained in the prescribed format? [Section 32 and Section 33(a)(v)]", value: data?.leave_and_holiday_registers_maintained_contract },
+        { label: "Whether accident, injury, and dangerous occurrence records are properly maintained? [Section 10 and Section 33(a)(v)]", value: data?.accident_injury_dangerous_occurrence_records_contract },
+        { label: "Whether medical examination and health records of workers are maintained, where applicable? [Section 6(1)(c) and Section 85(c)]", value: data?.medical_examination_and_health_records_contract },
+        { label: "Has any adolescent been employed, and if so, are the specific registers maintained? [Section 32(1)(ii) and Section 33(a)(vii)]", value: data?.is_adolescent_employed_contract },
+        { label: "Whether wages paid at applicable rates? [Section 5 under Code on Wages, 2019]", value: data?.wages_paid_at_applicable_rates_contract },
+        { label: "Whether wages paid within prescribed time? [Section 17 under Code on Wages, 2019]", value: data?.wages_paid_within_prescribed_time_code_wages_contract },
+        { label: "Whether unauthorized/unlawful wage deductions happen? [Section 18 under Code on Wages, 2019]", value: data?.unauthorised_wage_deductions_contract },
+        { label: "Whether the establishment is registered and covered under EPFO and ESIC? [Section 3 read with the First Schedule]", value: data?.establishment_registered_and_covered_epfo_esic_contract },
+        { label: "Whether the construction workers are registered as beneficiaries under the BOCW Welfare Board? [Section 106]", value: data?.construction_workers_registered_bocw_welfare_board_contract },
     ];
 
-    // Inspection Findings
-    const findingsRows = [
-        { label: "1. Issue of appointment letters", value: data?.issue_of_appointment_letters_contract },
-        { label: "2. Issue of identity cards", value: data?.issue_of_identity_card_contract },
-        { label: "3. Issue of payslips", value: data?.issue_of_payslip_contract },
-        { label: "4. Applicability of ESIC", value: data?.applicable_of_ESIC_contract },
-        { label: "    Number of employees covered under ESIC", value: data?.ESIC_contract_no_of_empl },
-        { label: "5. Maintenance of registers against each employee", value: data?.maintenance_of_registers_contract },
-        { label: "6. Whether annual return is submitted", value: data?.whether_annual_rep_submitted_contract },
-        { label: "7. Has any adolescent been employed", value: data?.is_adolescent_employed_contract },
-    ];
-
-    // Contract Labour Act Provisions
-    const contractActRows = [
-        { label: "1. Whether License obtained while executing contract work [Section 47]", value: data?.whether_license_obtained },
-        { label: "2. Whether contract labour exceeds maximum number specified in licence [Section 48]", value: data?.whether_contract_labour_numbering },
-        { label: "3. Whether notices regarding rates of wages, hours of work, wage period etc. displayed [Section 31(1)]", value: data?.whether_notices_regarding_rates_of_wages },
-        { label: "4. Whether notice of Inspector's name & address displayed [Rule 81(i)]", value: data?.whether_notice_regarding_names },
-        { label: "5. Whether copy of displayed notices sent to Inspector [Section 31(2)]", value: data?.whether_copy_of_each_notice_displayed },
-        { label: "6. Whether wage period & disbursement notices informed digitally to Principal Employer [Section 55(2)]", value: data?.whether_notices_showing_wage_period },
-        { label: "7. Whether intimation of commencement/completion submitted within 30 days [Section 5(1)]", value: data?.whether_intimation_of_commencement },
-        { label: "8. Whether Yearly Return in Form X submitted [Section 33(d)]", value: data?.whether_half_yearly_return },
-        { label: "9. Whether authorised representative present during wage disbursement [Section 55(2)]", value: data?.whether_contractor_has_ensured_presence_of_representative },
-        { label: "10. Whether contractor ensured payment of wages within prescribed time [Section 55(2)]", value: data?.whether_contractor_ensured_payment_of_wages },
-        { label: "11. Whether register of persons employed maintained [Section 33(a)]", value: data?.whether_register_of_person_maintained },
-        { label: "12. Whether wage register maintained [Section 33(a)]", value: data?.whether_wage_register_maintained },
-        { label: "13. Whether signature/thumb impression obtained on wage register [Section 33(a)]", value: data?.whether_contractor_obtained_sig_thumb_impression },
-        { label: "14. Whether welfare facilities provided (water, latrine, washing) [Section 53]", value: data?.whether_welfare_facilities_regarding_drinking_water },
-        { label: "15. Whether creche facility provided when 20+ women employed [Section 53]", value: data?.whether_contractor_creche_facility },
-        { label: "16. Whether canteen facility provided when 100+ contract labour employed [Section 53]", value: data?.whether_contractor_provides_canteen_facility },
-        { label: "17. Whether rest rooms provided for night halt [Section 53]", value: data?.whether_contractor_prvides_rest_rooms },
-        { label: "18. Whether first aid facilities provided [Section 53]", value: data?.whether_first_aid_provided },
-        { label: "19. Whether employment id issued to each worker [Section 6(1)(f)]", value: data?.whether_contractor_issued_employment_card },
-        { label: "20. Whether employment card maintained up to date [Section 6(1)(f)]", value: data?.whether_date_maintained_in_employment_card },
-        { label: "21. Whether experience certificate issued on termination [Section 56]", value: data?.whether_contractor_issued_service_certificate },
-        { label: "22. Whether wage slips in Form XIX issued before wage disbursement [Section 33(c)]", value: data?.whether_wage_slips_formxix_issued },
-    ];
-
-    const adolescents = data?.adolescent_details_contract || [];
-    const directions = data?.contract_directions || [];
+    const adolescents = Array.isArray(data?.adolescent_details_contract) ? data.adolescent_details_contract : [];
+    const directions = Array.isArray(data?.contract_directions) ? data.contract_directions : [];
+    const hasDirections = data?.has_directions_contract || data?.contract_has_directions ||
+        (directions.some((item: any) => String(item ?? "").trim()) ? "Yes" : "No");
 
     return (
         <View style={previewStyles.card}>
             <Text style={previewStyles.sectionTitle}>Contract Labour Inspection Report</Text>
 
-            {/* Workplace Safety */}
-            <Text style={previewStyles.subSectionTitle}>Workplace Safety and Health Measures</Text>
-            <InspectionTable rows={safetyRows} />
+            <Text style={previewStyles.subSectionTitle}>
+                Inspection Report on The Contract Labour (Under Occupational Safety, Health and Working Conditions Code, 2020)
+            </Text>
+            <InspectionTable rows={contractRows} />
 
-            {/* Inspection Findings */}
-            <Text style={previewStyles.subSectionTitle}>Inspection Findings</Text>
-            <InspectionTable rows={findingsRows} />
-
-            {/* Adolescent Worker Details */}
-            {adolescents.length > 0 && (
+            {data?.is_adolescent_employed_contract === "Yes" && adolescents.length > 0 && (
                 <>
                     <Text style={previewStyles.subSectionTitle}>Adolescent Worker Details</Text>
-                    {adolescents.map((ado: any, idx: number) => (
-                        <View key={idx} style={previewStyles.nestedCard}>
-                            <Row label="Labour Office Intimation" value={ado.labour_office_intimation} />
-                            <Row label="Name" value={ado.name} />
-                            <Row label="Address" value={ado.address} />
-                            <Row label="Age" value={ado.age} />
-                            <Row label="Hazardous Work" value={ado.hazardous_work} />
-                            <Row label="Working Hours" value={ado.working_hours} />
-                            <Row label="Maintain Register" value={ado.maintain_register} />
-                            <Row label="Wage Amount" value={ado.wage_amount} />
-                            <Row
-                                label="Age Proof"
-                                value={
-                                    ado.age_proof
-                                        ? ado.age_proof.split("/").pop()
-                                        : "Not Uploaded"
-                                }
-                            />
-                        </View>
-                    ))}
+                    {adolescents.map((ado: any, idx: number) => {
+                        const proofName = typeof ado?.age_proof === "string"
+                            ? ado.age_proof.split("/").pop()
+                            : ado?.age_proof_name || ado?.age_proof?.name || "Not Uploaded";
+                        return (
+                            <View key={idx} style={previewStyles.nestedCard}>
+                                <Row label="Labour Office Intimation" value={ado.labour_office_intimation} />
+                                <Row label="Name" value={ado.name} />
+                                <Row label="Address" value={ado.address} />
+                                <Row label="Age" value={ado.age} />
+                                <Row label="Age Proof" value={proofName} />
+                                <Row label="Hazardous Work" value={ado.hazardous_work} />
+                                <Row label="Working Hours" value={ado.working_hours} />
+                                <Row label="Maintain Register" value={ado.maintain_register} />
+                                <Row label="Wage Amount" value={ado.wage_amount} />
+                            </View>
+                        );
+                    })}
                 </>
             )}
 
-            {/* Contract Labour Act */}
-            <Text style={previewStyles.subSectionTitle}>
-                Inspection Report on The Contract Labour (Under Occupational Safety, Health and Working Conditions Code, 2000)
-            </Text>
-            <InspectionTable rows={contractActRows} />
-
-            {/* Directions */}
-            {directions.length > 0 && (
-                <>
-                    <Text style={previewStyles.subSectionTitle}>Directions</Text>
-                    {directions.map((dir: string, idx: number) => (
+            <Text style={previewStyles.subSectionTitle}>Directions</Text>
+            <InspectionTable rows={[{ label: "Is there any directions to be mentioned?", value: hasDirections || "-" }]} />
+            {hasDirections === "Yes" && directions.filter((dir: any) => String(dir ?? "").trim()).length > 0 && (
+                <View style={previewStyles.nestedCard}>
+                    {directions.filter((dir: any) => String(dir ?? "").trim()).map((dir: string, idx: number) => (
                         <Text key={idx} style={previewStyles.bulletItem}>• {dir}</Text>
                     ))}
-                </>
+                </View>
             )}
 
-            {/* Additional Remarks */}
             <Text style={previewStyles.subSectionTitle}>Additional Remarks</Text>
             <Text style={previewStyles.remarksText}>{data?.additional_remarks2 || "-"}</Text>
 
@@ -912,7 +909,14 @@ function MWPreview({ data, onEdit }: any) {
 
     const adolescents = data?.adolescent_details_minimumwage || [];
     const workers = data?.workers_detail_mw || [];
-    const directions = data?.minimumwage_directions || [];
+    const hasDirections =
+        data?.has_directions_minimumwage ||
+        data?.minimumwage_has_directions ||
+        ((data?.minimumwage_directions || []).some((item: any) => String(item ?? "").trim()) ? "Yes" : "No");
+    const directions = hasDirections === "Yes"
+        ? (Array.isArray(data?.minimumwage_directions) ? data.minimumwage_directions : [])
+            .filter((item: any) => String(item ?? "").trim())
+        : [];
 
     // Employee count helpers
     const renderEmployeeTable = (title: string, prefix: string) => (
@@ -962,7 +966,7 @@ function MWPreview({ data, onEdit }: any) {
                             <Row label="Working Hours" value={ado.working_hours} />
                             <Row label="Maintain Register" value={ado.maintain_register} />
                             <Row label="Wage Amount" value={ado.wage_amount} />
-                            <Row label="Age Proof" value={ado.age_proof ? "Uploaded" : "Not uploaded"} />
+                            <Row label="Age Proof" value={ado.age_proof_name || (ado.age_proof ? "Uploaded" : "Not uploaded")} />
                         </View>
                     ))}
                 </>
@@ -1010,7 +1014,7 @@ function MWPreview({ data, onEdit }: any) {
                                 <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>{w.designation || "-"}</Text>
                                 <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>{w.doj || "-"}</Text>
                                 <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>{w.wages || "-"}</Text>
-                                <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>{w.payslip ? "Uploaded" : "Not uploaded"}</Text>
+                                <Text style={[previewStyles.tableCell, previewStyles.tableCellCenter]}>{w.payslip_name || (w.payslip ? "Uploaded" : "Not uploaded")}</Text>
                             </View>
                         ))}
                     </View>
@@ -1018,13 +1022,16 @@ function MWPreview({ data, onEdit }: any) {
             )}
 
             {/* Directions */}
-            {directions.length > 0 && (
-                <>
-                    <Text style={previewStyles.subSectionTitle}>Directions</Text>
+            <Text style={previewStyles.subSectionTitle}>Directions</Text>
+            <InspectionTable rows={[
+                { label: "Is there any directions to be mentioned?", value: hasDirections || "-" },
+            ]} />
+            {hasDirections === "Yes" && directions.length > 0 && (
+                <View style={{ marginBottom: 10 }}>
                     {directions.map((dir: string, idx: number) => (
                         <Text key={idx} style={previewStyles.bulletItem}>• {dir}</Text>
                     ))}
-                </>
+                </View>
             )}
 
             {/* Additional Remarks */}

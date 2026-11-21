@@ -97,9 +97,41 @@ export default function InspectionFormScreen() {
         const status = response.data.common.sections_status || {};
         const types = response.data.common.selected_types || [];
 
-        setCurrentStep(step);
+        const workerCountValue = response.data.eodb?.no_of_employees;
+        const workerCount = Number(workerCountValue);
+        const hasWorkerCount =
+          workerCountValue !== null &&
+          workerCountValue !== undefined &&
+          String(workerCountValue).trim() !== "" &&
+          Number.isFinite(workerCount) &&
+          workerCount >= 0;
+
+        const automaticMainType = hasWorkerCount
+          ? workerCount > 10
+            ? "combined"
+            : "ase"
+          : null;
+
+        const optionalTypes = types.filter(
+          (type: string) => type === "contract" || type === "minimumwage"
+        );
+
+        const normalizedTypes = automaticMainType
+          ? [automaticMainType, ...optionalTypes]
+          : types;
+
+        // If a previously saved main form no longer matches the EODB worker count,
+        // return to Common Details so the correct form selection can be saved.
+        const normalizedStep =
+          step === "common" ||
+          step === "preview" ||
+          normalizedTypes.includes(step)
+            ? step
+            : "common";
+
+        setCurrentStep(normalizedStep);
         setSectionsStatus(status);
-        setSelectedTypes(types);
+        setSelectedTypes(normalizedTypes);
       }
     } catch (error: any) {
       console.log(error?.response?.data);
@@ -175,7 +207,7 @@ export default function InspectionFormScreen() {
           }
         );
 
-        setCurrentStep(response.data.next_step || "ase");
+        setCurrentStep(response.data.next_step || formData.form_selector?.[0] || "ase");
         await loadApplication();
       } else {
         Alert.alert("Error", response.data.message || "Save failed");
@@ -209,6 +241,7 @@ export default function InspectionFormScreen() {
           key === 'adolescent_details_contract' ||
           key === 'adolescent_details_minimumwage' ||
           key === 'workers_detail_mw' ||
+          key === 'worker_payslip_path' ||
           key === 'combined_violation_photo') {
           return;
         }
@@ -236,8 +269,17 @@ export default function InspectionFormScreen() {
         payload.append(`working_hours_${sectionType}[${index}]`, ado.working_hours || '');
         payload.append(`wage_amount_${sectionType}[${index}]`, ado.wage_amount || '');
         payload.append(`maintain_register_${sectionType}[${index}]`, ado.maintain_register || '');
+
+        // Preserve the previously saved private-file path when no replacement is selected.
+        // The backend verifies this path against the existing inspection record.
+        if (typeof ado.age_proof === "string" && ado.age_proof.trim()) {
+          payload.append(`age_proof_${sectionType}_path[${index}]`, ado.age_proof);
+        } else if (typeof ado.age_proof_path === "string" && ado.age_proof_path.trim()) {
+          payload.append(`age_proof_${sectionType}_path[${index}]`, ado.age_proof_path);
+        }
+
         console.log("Age proof:", ado.age_proof);
-        if (ado.age_proof && ado.age_proof.uri) {
+        if (ado.age_proof && typeof ado.age_proof === "object" && ado.age_proof.uri) {
           payload.append(`age_proof_${sectionType}[${index}]`, {
             uri: ado.age_proof.uri,
             name: ado.age_proof.name || `age_proof_${index}.pdf`,
@@ -267,7 +309,13 @@ export default function InspectionFormScreen() {
           payload.append(`worker_doj_mw[${index}]`, worker.doj || '');
           payload.append(`worker_wages_mw[${index}]`, worker.wages || '');
 
-          if (worker.payslip && worker.payslip.uri) {
+          if (typeof worker.payslip === "string" && worker.payslip.trim()) {
+            payload.append(`worker_payslip_path[${index}]`, worker.payslip);
+          } else if (typeof worker.payslip_path === "string" && worker.payslip_path.trim()) {
+            payload.append(`worker_payslip_path[${index}]`, worker.payslip_path);
+          }
+
+          if (worker.payslip && typeof worker.payslip === "object" && worker.payslip.uri) {
             payload.append(`worker_payslip[${index}]`, {
               uri: worker.payslip.uri,
               name: worker.payslip.name || `payslip_${index}.pdf`,
@@ -582,6 +630,7 @@ export default function InspectionFormScreen() {
             application={application}
             common={common}
             eodbCommon={eodbCommon}
+            eodbAse={eodbAse}
             user={user}
             onSave={handleCommonFormSave}
             gpsAcquiring={gpsAcquiring}
@@ -666,6 +715,7 @@ export default function InspectionFormScreen() {
             application={application}
             common={common}
             eodbCommon={eodbCommon}
+            eodbAse={eodbAse}
             user={user}
             onSave={handleCommonFormSave}
             gpsAcquiring={gpsAcquiring}
@@ -783,19 +833,23 @@ function StepProgressIndicator({
   sectionsStatus: Record<string, boolean>;
   selectedTypes: string[];
 }) {
+  const stepDetails: Record<string, { label: string; icon: string }> = {
+    combined: { label: "Combined", icon: "🏭" },
+    ase: { label: "ASE", icon: "🏭" },
+    contract: { label: "Contract", icon: "📝" },
+    minimumwage: { label: "Min. Wage", icon: "💰" },
+  };
+
+  // Show only the inspection sections selected for this application.
   const steps = [
     { key: "common", label: "Common", icon: "📋" },
-    { key: "combined", label: "Combined", icon: "🏭" },
-    { key: "ase", label: "ASE", icon: "🏭" },
-    { key: "contract", label: "Contract", icon: "📝" },
-    { key: "minimumwage", label: "Min. Wage", icon: "💰" },
+    ...selectedTypes
+      .filter((type, index, types) => types.indexOf(type) === index && !!stepDetails[type])
+      .map((type) => ({ key: type, ...stepDetails[type] })),
     { key: "preview", label: "Preview", icon: "👁️" },
   ];
 
   const getStepStatus = (stepKey: string) => {
-    if (!selectedTypes.includes(stepKey) && stepKey !== "common" && stepKey !== "preview") {
-      return "skipped";
-    }
     if (sectionsStatus[stepKey] === true) return "completed";
     if (currentStep === stepKey) return "current";
     return "pending";
@@ -817,13 +871,11 @@ function StepProgressIndicator({
                     styles.stepCircle,
                     status === "completed" && styles.stepCompleted,
                     status === "current" && styles.stepCurrent,
-                    status === "skipped" && styles.stepSkipped,
+                    
                   ]}
                 >
                   {status === "completed" ? (
                     <Text style={styles.stepCheck}>✓</Text>
-                  ) : status === "skipped" ? (
-                    <Text style={styles.stepSkip}>−</Text>
                   ) : (
                     <Text style={styles.stepIcon}>{step.icon}</Text>
                   )}
@@ -832,7 +884,7 @@ function StepProgressIndicator({
                   style={[
                     styles.stepLabel,
                     status === "current" && styles.stepLabelCurrent,
-                    status === "skipped" && styles.stepLabelSkipped,
+                    
                   ]}
                   numberOfLines={1}
                 >

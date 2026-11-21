@@ -8,6 +8,24 @@ import {
   Image,
 } from 'react-native';
 
+type PreviewData = Record<string, any> & {
+  selected_types?: string[];
+  adolescent_details_ase?: Array<Record<string, any>>;
+  ase_directions?: string[];
+  contract_directions?: string[];
+  minimumwage_directions?: string[];
+};
+
+type PreviewSectionProps = {
+  commonData: PreviewData;
+  aseData: PreviewData;
+  contractData: PreviewData;
+  mwData: PreviewData;
+  inspectionTypes?: string[];
+  onEdit: (section: string) => void;
+  onSubmit?: () => void;
+};
+
 export default function PreviewSection({
   commonData,
   aseData,
@@ -16,10 +34,11 @@ export default function PreviewSection({
   inspectionTypes,
   onEdit,
   onSubmit,
-}) {
-  const [activePreview, setActivePreview] = useState('common');
+}: PreviewSectionProps) {
+  const [activePreview, setActivePreview] = useState<string>('common');
+  const adolescentDetails = aseData.adolescent_details_ase ?? [];
 
-  const typeLabels = {
+  const typeLabels: Record<string, string> = {
     ase: 'ASE Inspection',
     contract: 'Contract Labour',
     minimumwage: 'Minimum Wage',
@@ -59,7 +78,7 @@ export default function PreviewSection({
 
       <View style={styles.previewSection}>
         <Text style={styles.previewSectionTitle}>Selected Inspection Types</Text>
-        {(commonData.selected_types || []).map(type => (
+        {(commonData.selected_types || []).map((type: string) => (
           <Text key={type} style={styles.previewListItem}>• {typeLabels[type] || type}</Text>
         ))}
       </View>
@@ -103,10 +122,10 @@ export default function PreviewSection({
         {renderPreviewRow('Adolescent Employed', aseData.is_adolescent_employed_ase)}
       </View>
 
-      {(aseData.adolescent_details_ase || []).length > 0 && (
+      {adolescentDetails.length > 0 && (
         <View style={styles.previewSection}>
-          <Text style={styles.previewSectionTitle}>Adolescent Workers ({aseData.adolescent_details_ase.length})</Text>
-          {aseData.adolescent_details_ase.map((ado, i) => (
+          <Text style={styles.previewSectionTitle}>Adolescent Workers ({adolescentDetails.length})</Text>
+          {adolescentDetails.map((ado: Record<string, any>, i: number) => (
             <View key={i} style={styles.nestedBlock}>
               <Text style={styles.nestedTitle}>Worker {i + 1}</Text>
               {renderPreviewRow('Name', ado.name)}
@@ -147,7 +166,7 @@ export default function PreviewSection({
 
       <View style={styles.previewSection}>
         <Text style={styles.previewSectionTitle}>Directions</Text>
-        {(aseData.ase_directions || []).map((dir, i) => (
+        {(aseData.ase_directions || []).map((dir: string, i: number) => (
           <Text key={i} style={styles.previewListItem}>{i + 1}. {dir}</Text>
         ))}
       </View>
@@ -186,7 +205,7 @@ export default function PreviewSection({
 
       <View style={styles.previewSection}>
         <Text style={styles.previewSectionTitle}>Directions</Text>
-        {(contractData.contract_directions || []).map((dir, i) => (
+        {(contractData.contract_directions || []).map((dir: string, i: number) => (
           <Text key={i} style={styles.previewListItem}>{i + 1}. {dir}</Text>
         ))}
       </View>
@@ -240,7 +259,7 @@ export default function PreviewSection({
 
       <View style={styles.previewSection}>
         <Text style={styles.previewSectionTitle}>Directions</Text>
-        {(mwData.minimumwage_directions || []).map((dir, i) => (
+        {(mwData.minimumwage_directions || []).map((dir: string, i: number) => (
           <Text key={i} style={styles.previewListItem}>{i + 1}. {dir}</Text>
         ))}
       </View>
@@ -252,7 +271,7 @@ export default function PreviewSection({
     </View>
   );
 
-  const renderPreviewRow = (label, value) => (
+  const renderPreviewRow = (label: string, value: any) => (
     <View style={styles.previewRow}>
       <Text style={styles.previewLabel}>{label}</Text>
       <Text style={styles.previewValue}>{value || '-'}</Text>
@@ -261,7 +280,7 @@ export default function PreviewSection({
 
   const previewOptions = [
     { key: 'common', label: 'Common Details', color: '#1976D2' },
-    ...(commonData.selected_types || []).map(t => ({
+    ...(commonData.selected_types || []).map((t: string) => ({
       key: t,
       label: typeLabels[t] || t,
       color: t === 'ase' ? '#28a745' : t === 'contract' ? '#ffc107' : '#17a2b8',

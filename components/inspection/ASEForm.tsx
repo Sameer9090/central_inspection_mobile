@@ -15,6 +15,32 @@ import {
   View,
 } from "react-native";
 
+type AdolescentDetail = {
+  labour_office_intimation: string;
+  name: string;
+  address: string;
+  age: string;
+  age_proof: { uri: string; name: string; type: string; size?: number } | null;
+  age_proof_name: string;
+  hazardous_work: string;
+  working_hours: string;
+  maintain_register: string;
+  wage_amount: string;
+};
+
+const createEmptyAdolescent = (): AdolescentDetail => ({
+  labour_office_intimation: "",
+  name: "",
+  address: "",
+  age: "",
+  age_proof: null,
+  age_proof_name: "",
+  hazardous_work: "",
+  working_hours: "",
+  maintain_register: "",
+  wage_amount: "",
+});
+
 // Reusable components
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <Text style={styles.sectionTitle}>{children}</Text>
@@ -356,40 +382,25 @@ export default function ASEForm({
     inspectionASE?.is_adolescent_employed_ase || "",
   );
 
+  // Additional ASE inspection criteria present in the website Blade form.
+  const [intimationObtained, setIntimationObtained] = useState(inspectionASE?.intimation_obtained_ase || "");
+  const [womenWrittenConsent, setWomenWrittenConsent] = useState(inspectionASE?.women_written_consent_ase || "");
+  const [womenSecurityGuards, setWomenSecurityGuards] = useState(inspectionASE?.women_security_guards_ase || "");
+  const [cctvAvailable, setCctvAvailable] = useState(inspectionASE?.cctv_available_ase || "");
+  const [transportationProvided, setTransportationProvided] = useState(inspectionASE?.transportation_provided_ase || "");
+  const [separateRestrooms, setSeparateRestrooms] = useState(inspectionASE?.separate_restrooms_ase || "");
+  const [overtimeWagesPaid, setOvertimeWagesPaid] = useState(inspectionASE?.overtime_wages_paid_ase || "");
+  const [leavesAndHolidaysProvided, setLeavesAndHolidaysProvided] = useState(inspectionASE?.leaves_and_holidays_provided_ase || "");
+
   // ===== SECTION 3: Adolescent Worker Details =====
-  const [adolescentDetails, setAdolescentDetails] = useState(
-    inspectionASE?.adolescent_details_ase || [
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
-    ],
+  const [adolescentDetails, setAdolescentDetails] = useState<AdolescentDetail[]>(
+    Array.isArray(inspectionASE?.adolescent_details_ase) && inspectionASE.adolescent_details_ase.length
+      ? inspectionASE.adolescent_details_ase as AdolescentDetail[]
+      : [createEmptyAdolescent()],
   );
 
   const addAdolescent = () => {
-    setAdolescentDetails([
-      ...adolescentDetails,
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
-    ]);
+    setAdolescentDetails((previous) => [...previous, createEmptyAdolescent()]);
   };
 
   const removeAdolescent = (index: number) => {
@@ -399,7 +410,7 @@ export default function ASEForm({
   };
 
   const updateAdolescent = (index: number, field: string, value: any) => {
-    setAdolescentDetails(prev => {
+    setAdolescentDetails((prev) => {
       const updated = [...prev];
       updated[index] = {
         ...updated[index],
@@ -419,7 +430,7 @@ export default function ASEForm({
       if (!result.canceled) {
         const file = result.assets[0];
 
-        setAdolescentDetails(prev => {
+        setAdolescentDetails((prev) => {
           const updated = [...prev];
 
           updated[index] = {
@@ -524,6 +535,8 @@ export default function ASEForm({
     semiskilled_female: inspectionASE?.permanent_semiskilled_female || "",
     skilled_male: inspectionASE?.permanent_skilled_male || "",
     skilled_female: inspectionASE?.permanent_skilled_female || "",
+    highly_skilled_male: inspectionASE?.permanent_highly_skilled_male || "",
+    highly_skilled_female: inspectionASE?.permanent_highly_skilled_female || "",
   });
 
   // ===== SECTION 6: Temporary/Casual Workers =====
@@ -534,6 +547,8 @@ export default function ASEForm({
     semiskilled_female: inspectionASE?.temporary_semiskilled_female || "",
     skilled_male: inspectionASE?.temporary_skilled_male || "",
     skilled_female: inspectionASE?.temporary_skilled_female || "",
+    highly_skilled_male: inspectionASE?.temporary_highly_skilled_male || "",
+    highly_skilled_female: inspectionASE?.temporary_highly_skilled_female || "",
     apprentice_male: inspectionASE?.temporary_apprentice_male || "",
     apprentice_female: inspectionASE?.temporary_apprentice_female || "",
   });
@@ -546,6 +561,8 @@ export default function ASEForm({
     semiskilled_female: inspectionASE?.contract_semiskilled_female || "",
     skilled_male: inspectionASE?.contract_skilled_male || "",
     skilled_female: inspectionASE?.contract_skilled_female || "",
+    highly_skilled_male: inspectionASE?.contract_highly_skilled_male || "",
+    highly_skilled_female: inspectionASE?.contract_highly_skilled_female || "",
   });
 
   // ===== SECTION 8: Rate of Wages Paid =====
@@ -556,6 +573,8 @@ export default function ASEForm({
     semiskilled_female: inspectionASE?.wages_paid_semiskilled_female || "",
     skilled_male: inspectionASE?.wages_paid_skilled_male || "",
     skilled_female: inspectionASE?.wages_paid_skilled_female || "",
+    highly_skilled_male: inspectionASE?.wages_paid_highly_skilled_male || "",
+    highly_skilled_female: inspectionASE?.wages_paid_highly_skilled_female || "",
   });
 
   // ===== SECTION 9: Additional Compliance =====
@@ -587,8 +606,11 @@ export default function ASEForm({
   const [violationOfProvisions, setViolationOfProvisions] = useState(
     inspectionASE?.violation_of_provisions || "",
   );
-  const [directions, setDirections] = useState(
-    inspectionASE?.ase_directions || [""],
+  const [hasDirections, setHasDirections] = useState(
+    inspectionASE?.has_directions_ase || (Array.isArray(inspectionASE?.ase_directions) && inspectionASE.ase_directions.some((item: any) => String(item ?? "").trim()) ? "Yes" : ""),
+  );
+  const [directions, setDirections] = useState<string[]>(
+    Array.isArray(inspectionASE?.ase_directions) && inspectionASE.ase_directions.length ? inspectionASE.ase_directions as string[] : [""],
   );
   const [additionalRemarks, setAdditionalRemarks] = useState(
     inspectionASE?.additional_remarks || "",
@@ -661,6 +683,16 @@ export default function ASEForm({
       newErrors.register_of_leave = "This field is required";
     if (!violationOfProvisions)
       newErrors.violation_of_provisions = "This field is required";
+    if (!intimationObtained) newErrors.intimation_obtained_ase = "This field is required";
+    if (!womenWrittenConsent) newErrors.women_written_consent_ase = "This field is required";
+    if (!womenSecurityGuards) newErrors.women_security_guards_ase = "This field is required";
+    if (!cctvAvailable) newErrors.cctv_available_ase = "This field is required";
+    if (!transportationProvided) newErrors.transportation_provided_ase = "This field is required";
+    if (!separateRestrooms) newErrors.separate_restrooms_ase = "This field is required";
+    if (!overtimeWagesPaid) newErrors.overtime_wages_paid_ase = "This field is required";
+    if (!leavesAndHolidaysProvided) newErrors.leaves_and_holidays_provided_ase = "This field is required";
+    if (!hasDirections) newErrors.has_directions_ase = "This field is required";
+    if (hasDirections === "Yes" && !directions.some((item) => item.trim())) newErrors.ase_directions = "Please enter at least one direction";
     if (!additionalRemarks.trim())
       newErrors.additional_remarks = "This field is required";
 
@@ -700,6 +732,14 @@ export default function ASEForm({
       maintenance_of_registers_ase: maintenanceOfRegisters,
       whether_annual_rep_submitted_ase: annualRepSubmitted,
       is_adolescent_employed_ase: isAdolescentEmployed,
+      intimation_obtained_ase: intimationObtained,
+      women_written_consent_ase: womenWrittenConsent,
+      women_security_guards_ase: womenSecurityGuards,
+      cctv_available_ase: cctvAvailable,
+      transportation_provided_ase: transportationProvided,
+      separate_restrooms_ase: separateRestrooms,
+      overtime_wages_paid_ase: overtimeWagesPaid,
+      leaves_and_holidays_provided_ase: leavesAndHolidaysProvided,
 
       // Adolescent details
       adolescent_details_ase: adolescentDetails,
@@ -729,6 +769,8 @@ export default function ASEForm({
       permanent_semiskilled_female: permanentWorkers.semiskilled_female,
       permanent_skilled_male: permanentWorkers.skilled_male,
       permanent_skilled_female: permanentWorkers.skilled_female,
+      permanent_highly_skilled_male: permanentWorkers.highly_skilled_male,
+      permanent_highly_skilled_female: permanentWorkers.highly_skilled_female,
 
       temporary_unskilled_male: temporaryWorkers.unskilled_male,
       temporary_unskilled_female: temporaryWorkers.unskilled_female,
@@ -736,6 +778,8 @@ export default function ASEForm({
       temporary_semiskilled_female: temporaryWorkers.semiskilled_female,
       temporary_skilled_male: temporaryWorkers.skilled_male,
       temporary_skilled_female: temporaryWorkers.skilled_female,
+      temporary_highly_skilled_male: temporaryWorkers.highly_skilled_male,
+      temporary_highly_skilled_female: temporaryWorkers.highly_skilled_female,
       temporary_apprentice_male: temporaryWorkers.apprentice_male,
       temporary_apprentice_female: temporaryWorkers.apprentice_female,
 
@@ -745,6 +789,8 @@ export default function ASEForm({
       contract_semiskilled_female: contractLabour.semiskilled_female,
       contract_skilled_male: contractLabour.skilled_male,
       contract_skilled_female: contractLabour.skilled_female,
+      contract_highly_skilled_male: contractLabour.highly_skilled_male,
+      contract_highly_skilled_female: contractLabour.highly_skilled_female,
 
       // Wages
       wages_paid_unskilled_male: wagesPaid.unskilled_male,
@@ -753,6 +799,8 @@ export default function ASEForm({
       wages_paid_semiskilled_female: wagesPaid.semiskilled_female,
       wages_paid_skilled_male: wagesPaid.skilled_male,
       wages_paid_skilled_female: wagesPaid.skilled_female,
+      wages_paid_highly_skilled_male: wagesPaid.highly_skilled_male,
+      wages_paid_highly_skilled_female: wagesPaid.highly_skilled_female,
 
       // Additional compliance
       whether_notified_wages_paid: whetherNotifiedWagesPaid,
@@ -765,7 +813,8 @@ export default function ASEForm({
       register_of_employment: registerOfEmployment,
       register_of_leave: registerOfLeave,
       violation_of_provisions: violationOfProvisions,
-      ase_directions: directions,
+      has_directions_ase: hasDirections,
+      ase_directions: hasDirections === "Yes" ? directions.filter((item) => item.trim()) : [],
       additional_remarks: additionalRemarks,
     };
 
@@ -780,295 +829,6 @@ export default function ASEForm({
     <ScrollView style={styles.scrollView}>
       <View style={styles.container}>
         <Text style={styles.title}>ASE Inspection</Text>
-
-        {/* ===== SECTION 1: Workplace Safety and Health Measures ===== */}
-        <SectionTitle>Workplace Safety and Health Measures</SectionTitle>
-
-        <Row>
-          <Label>Ensuring proper cleanliness in the workplace</Label>
-          <Switch
-            value={cleanlinessWorkplace}
-            onValueChange={setCleanlinessWorkplace}
-          />
-        </Row>
-
-        <Row>
-          <Label>Providing adequate lighting in all work areas</Label>
-          <Switch
-            value={adequateLighting}
-            onValueChange={setAdequateLighting}
-          />
-        </Row>
-
-        <Row>
-          <Label>
-            Maintaining proper ventilation to ensure a healthy working
-            environment
-          </Label>
-          <Switch
-            value={properVentilation}
-            onValueChange={setProperVentilation}
-          />
-        </Row>
-
-        <Row>
-          <Label>
-            Taking necessary measures for prevention of fire, including safety
-            arrangements and emergency preparedness
-          </Label>
-          <Switch
-            value={firePreventionMeasures}
-            onValueChange={setFirePreventionMeasures}
-          />
-        </Row>
-
-        <Row>
-          <Label>
-            Taking all necessary preventive measures to avoid accidents at the
-            workplace
-          </Label>
-          <Switch
-            value={accidentPrevention}
-            onValueChange={setAccidentPrevention}
-          />
-        </Row>
-
-        <Row>
-          <Label>Drinking Water (Section 18)</Label>
-          <Switch value={drinkingWater} onValueChange={setDrinkingWater} />
-        </Row>
-
-        <Row>
-          <Label>Latrine & Urinal (Section 19)</Label>
-          <Switch value={latrineUrinal} onValueChange={setLatrineUrinal} />
-        </Row>
-
-        <Row>
-          <Label>First Aid (Section 19)</Label>
-          <Switch value={firstAid} onValueChange={setFirstAid} />
-        </Row>
-
-        <Row>
-          <Label>Creche Facility (Section 20)</Label>
-          <Switch value={crecheFacility} onValueChange={setCrecheFacility} />
-        </Row>
-
-        <Row>
-          <Label>Canteen (Section 22)</Label>
-          <Switch value={canteen} onValueChange={setCanteen} />
-        </Row>
-
-        {/* ===== SECTION 2: Inspection Table ===== */}
-        <SectionTitle>Inspection Criteria</SectionTitle>
-
-        <View style={styles.formGroup}>
-          <Label required>1. Issue of appointment letters (Section 16)</Label>
-          <SelectDropdown
-            value={issueOfAppointmentLetters}
-            onSelect={setIssueOfAppointmentLetters}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>2. Issue of identity cards (Section 16)</Label>
-          <SelectDropdown
-            value={issueOfIdentityCard}
-            onSelect={setIssueOfIdentityCard}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>3. Issue of payslips</Label>
-          <SelectDropdown
-            value={issueOfPayslip}
-            onSelect={setIssueOfPayslip}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            4. Applicability of ESIC to the establishment as per the Employees'
-            State Insurance Act, 1948
-          </Label>
-          <SelectDropdown
-            value={applicableOfESIC}
-            onSelect={(val) => {
-              setApplicableOfESIC(val);
-              if (val !== "Yes") setEsicNoOfEmpl("");
-            }}
-            options={yesNoOptions}
-          />
-          {applicableOfESIC === "Yes" && (
-            <TextInputField
-              value={esicNoOfEmpl}
-              onChangeText={setEsicNoOfEmpl}
-              placeholder="Enter number of employees"
-              keyboardType="numeric"
-            />
-          )}
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            5. Maintenance of registers against each employee (Section 25)
-          </Label>
-          <SelectDropdown
-            value={maintenanceOfRegisters}
-            onSelect={setMaintenanceOfRegisters}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            6. Whether annual return is submitted or not? (Section 26)
-          </Label>
-          <SelectDropdown
-            value={annualRepSubmitted}
-            onSelect={setAnnualRepSubmitted}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>7. Has any adolescent been employed?</Label>
-          <SelectDropdown
-            value={isAdolescentEmployed}
-            onSelect={setIsAdolescentEmployed}
-            options={yesNoOptions}
-          />
-        </View>
-
-        {/* ===== SECTION 3: Adolescent Worker Details ===== */}
-        {isAdolescentEmployed === "Yes" && (
-          <View style={styles.section}>
-            <SectionTitle>Adolescent Worker Details</SectionTitle>
-            {adolescentDetails.map((adolescent, index) => (
-              <View key={index} style={styles.adolescentBlock}>
-                <View style={styles.adolescentHeader}>
-                  <Text style={styles.adolescentTitle}>
-                    Adolescent Entry #{index + 1}
-                  </Text>
-                  {index > 0 && (
-                    <TouchableOpacity
-                      style={styles.removeBtn}
-                      onPress={() => removeAdolescent(index)}
-                    >
-                      <Text style={styles.removeBtnText}>Remove</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>
-                    a. Whether intimation has been provided to the concerned
-                    Labour Office
-                  </Label>
-                  <SelectDropdown
-                    value={adolescent.labour_office_intimation}
-                    onSelect={(val) =>
-                      updateAdolescent(index, "labour_office_intimation", val)
-                    }
-                    options={yesNoOptions}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>b. Name of the adolescent</Label>
-                  <TextInputField
-                    value={adolescent.name}
-                    onChangeText={(val) => updateAdolescent(index, "name", val)}
-                    placeholder="Enter name"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>c. Address of the adolescent</Label>
-                  <TextInputField
-                    value={adolescent.address}
-                    onChangeText={(val) =>
-                      updateAdolescent(index, "address", val)
-                    }
-                    placeholder="Enter address"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>d. Age of the adolescent</Label>
-                  <NumberInput
-                    value={adolescent.age}
-                    onChangeText={(val) => updateAdolescent(index, "age", val)}
-                    placeholder="Enter age"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>e. Age proof (Upload document)</Label>
-                  <TouchableOpacity
-                    style={styles.uploadBtn}
-                    onPress={() => pickAgeProofDocument(index)}
-                  >
-                    <Text style={styles.uploadBtnText}>
-                      {adolescent.age_proof_name || "Choose File"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>
-                    f. Whether engaged in hazardous occupations
-                  </Label>
-                  <SelectDropdown
-                    value={adolescent.hazardous_work}
-                    onSelect={(val) =>
-                      updateAdolescent(index, "hazardous_work", val)
-                    }
-                    options={yesNoOptions}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>g. Working hours</Label>
-                  <TextInputField
-                    value={adolescent.working_hours}
-                    onChangeText={(val) =>
-                      updateAdolescent(index, "working_hours", val)
-                    }
-                    placeholder="Enter working hours"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>h. Whether maintains register or not</Label>
-                  <SelectDropdown
-                    value={adolescent.maintain_register}
-                    onSelect={(val) =>
-                      updateAdolescent(index, "maintain_register", val)
-                    }
-                    options={yesNoOptions}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Label required>i. Wage paid to the adolescent</Label>
-                  <NumberInput
-                    value={adolescent.wage_amount}
-                    onChangeText={(val) =>
-                      updateAdolescent(index, "wage_amount", val)
-                    }
-                    placeholder="Enter wage amount"
-                  />
-                </View>
-              </View>
-            ))}
-            <TouchableOpacity style={styles.addBtn} onPress={addAdolescent}>
-              <Text style={styles.addBtnText}>Add Another Adolescent</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* ===== SECTION 4: Establishment / Employer Details ===== */}
         <SectionTitle>Establishment / Employer Details</SectionTitle>
@@ -1299,10 +1059,330 @@ export default function ASEForm({
           )}
         </View>
 
+        {/* ===== SECTION 2: Inspection Table - Intimation, Women Employees, Overtime and Leave ===== */}
+        <SectionTitle>Inspection Criteria</SectionTitle>
+        <View style={styles.formGroup}>
+          <Label required>1. Intimation Obtained (Section 7)</Label>
+          <SelectDropdown value={intimationObtained} onSelect={setIntimationObtained} options={yesNoOptions} />
+        </View>
+
+        <SectionTitle>Engagement of Women Employees in Night Shifts (Section 11(2))</SectionTitle>
+        {[
+          ["Written Consent Taken", womenWrittenConsent, setWomenWrittenConsent, "women_written_consent_ase"],
+          ["Women Security Guards Available", womenSecurityGuards, setWomenSecurityGuards, "women_security_guards_ase"],
+          ["CCTV Available", cctvAvailable, setCctvAvailable, "cctv_available_ase"],
+          ["Transportation Provided", transportationProvided, setTransportationProvided, "transportation_provided_ase"],
+          ["Separate Restrooms Provided", separateRestrooms, setSeparateRestrooms, "separate_restrooms_ase"],
+        ].map(([label, value, setter, key]: any) => (
+          <View style={styles.formGroup} key={key}>
+            <Label required>{label}</Label>
+            <SelectDropdown value={value} onSelect={setter} options={yesNoOptions} />
+          </View>
+        ))}
+
+        <View style={styles.formGroup}>
+          <Label required>Overtime Wages Paid for Extra Working Hours (Section 14)</Label>
+          <SelectDropdown value={overtimeWagesPaid} onSelect={setOvertimeWagesPaid} options={yesNoOptions} />
+        </View>
+        <View style={styles.formGroup}>
+          <Label required>Annual Leave, Casual Leave, Sick Leave and Other Prescribed Holidays Provided (Section 17)</Label>
+          <SelectDropdown value={leavesAndHolidaysProvided} onSelect={setLeavesAndHolidaysProvided} options={yesNoOptions} />
+        </View>
+
+
+        {/* ===== Additional Inspection Criteria ===== */}
+        <SectionTitle>Other Inspection Criteria</SectionTitle>
+
+        <View style={styles.formGroup}>
+          <Label required>1. Issue of appointment letters (Section 16)</Label>
+          <SelectDropdown
+            value={issueOfAppointmentLetters}
+            onSelect={setIssueOfAppointmentLetters}
+            options={yesNoOptions}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Label required>2. Issue of identity cards (Section 16)</Label>
+          <SelectDropdown
+            value={issueOfIdentityCard}
+            onSelect={setIssueOfIdentityCard}
+            options={yesNoOptions}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Label required>3. Issue of payslips</Label>
+          <SelectDropdown
+            value={issueOfPayslip}
+            onSelect={setIssueOfPayslip}
+            options={yesNoOptions}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Label required>
+            4. Applicability of ESIC to the establishment as per the Employees'
+            State Insurance Act, 1948
+          </Label>
+          <SelectDropdown
+            value={applicableOfESIC}
+            onSelect={(val) => {
+              setApplicableOfESIC(val);
+              if (val !== "Yes") setEsicNoOfEmpl("");
+            }}
+            options={yesNoOptions}
+          />
+          {applicableOfESIC === "Yes" && (
+            <TextInputField
+              value={esicNoOfEmpl}
+              onChangeText={setEsicNoOfEmpl}
+              placeholder="Enter number of employees"
+              keyboardType="numeric"
+            />
+          )}
+        </View>
+
+        <View style={styles.formGroup}>
+          <Label required>
+            5. Maintenance of registers against each employee (Section 25)
+          </Label>
+          <SelectDropdown
+            value={maintenanceOfRegisters}
+            onSelect={setMaintenanceOfRegisters}
+            options={yesNoOptions}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Label required>
+            6. Whether annual return is submitted or not? (Section 26)
+          </Label>
+          <SelectDropdown
+            value={annualRepSubmitted}
+            onSelect={setAnnualRepSubmitted}
+            options={yesNoOptions}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Label required>7. Has any adolescent been employed?</Label>
+          <SelectDropdown
+            value={isAdolescentEmployed}
+            onSelect={setIsAdolescentEmployed}
+            options={yesNoOptions}
+          />
+        </View>
+
+        {/* ===== SECTION 3: Adolescent Worker Details ===== */}
+        {isAdolescentEmployed === "Yes" && (
+          <View style={styles.section}>
+            <SectionTitle>Adolescent Worker Details</SectionTitle>
+            {adolescentDetails.map((adolescent, index) => (
+              <View key={index} style={styles.adolescentBlock}>
+                <View style={styles.adolescentHeader}>
+                  <Text style={styles.adolescentTitle}>
+                    Adolescent Entry #{index + 1}
+                  </Text>
+                  {index > 0 && (
+                    <TouchableOpacity
+                      style={styles.removeBtn}
+                      onPress={() => removeAdolescent(index)}
+                    >
+                      <Text style={styles.removeBtnText}>Remove</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>
+                    a. Whether intimation has been provided to the concerned
+                    Labour Office
+                  </Label>
+                  <SelectDropdown
+                    value={adolescent.labour_office_intimation}
+                    onSelect={(val) =>
+                      updateAdolescent(index, "labour_office_intimation", val)
+                    }
+                    options={yesNoOptions}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>b. Name of the adolescent</Label>
+                  <TextInputField
+                    value={adolescent.name}
+                    onChangeText={(val) => updateAdolescent(index, "name", val)}
+                    placeholder="Enter name"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>c. Address of the adolescent</Label>
+                  <TextInputField
+                    value={adolescent.address}
+                    onChangeText={(val) =>
+                      updateAdolescent(index, "address", val)
+                    }
+                    placeholder="Enter address"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>d. Age of the adolescent</Label>
+                  <NumberInput
+                    value={adolescent.age}
+                    onChangeText={(val) => updateAdolescent(index, "age", val)}
+                    placeholder="Enter age"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>e. Age proof (Upload document)</Label>
+                  <TouchableOpacity
+                    style={styles.uploadBtn}
+                    onPress={() => pickAgeProofDocument(index)}
+                  >
+                    <Text style={styles.uploadBtnText}>
+                      {adolescent.age_proof_name || "Choose File"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>
+                    f. Whether engaged in hazardous occupations
+                  </Label>
+                  <SelectDropdown
+                    value={adolescent.hazardous_work}
+                    onSelect={(val) =>
+                      updateAdolescent(index, "hazardous_work", val)
+                    }
+                    options={yesNoOptions}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>g. Working hours</Label>
+                  <TextInputField
+                    value={adolescent.working_hours}
+                    onChangeText={(val) =>
+                      updateAdolescent(index, "working_hours", val)
+                    }
+                    placeholder="Enter working hours"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>h. Whether maintains register or not</Label>
+                  <SelectDropdown
+                    value={adolescent.maintain_register}
+                    onSelect={(val) =>
+                      updateAdolescent(index, "maintain_register", val)
+                    }
+                    options={yesNoOptions}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Label required>i. Wage paid to the adolescent</Label>
+                  <NumberInput
+                    value={adolescent.wage_amount}
+                    onChangeText={(val) =>
+                      updateAdolescent(index, "wage_amount", val)
+                    }
+                    placeholder="Enter wage amount"
+                  />
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addBtn} onPress={addAdolescent}>
+              <Text style={styles.addBtnText}>Add Another Adolescent</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ===== SECTION 1: Workplace Safety and Health Measures ===== */}
+        <SectionTitle>Workplace Safety and Health Measures</SectionTitle>
+
+        <Row>
+          <Label>Ensuring proper cleanliness in the workplace</Label>
+          <Switch
+            value={cleanlinessWorkplace}
+            onValueChange={setCleanlinessWorkplace}
+          />
+        </Row>
+
+        <Row>
+          <Label>Providing adequate lighting in all work areas</Label>
+          <Switch
+            value={adequateLighting}
+            onValueChange={setAdequateLighting}
+          />
+        </Row>
+
+        <Row>
+          <Label>
+            Maintaining proper ventilation to ensure a healthy working
+            environment
+          </Label>
+          <Switch
+            value={properVentilation}
+            onValueChange={setProperVentilation}
+          />
+        </Row>
+
+        <Row>
+          <Label>
+            Taking necessary measures for prevention of fire, including safety
+            arrangements and emergency preparedness
+          </Label>
+          <Switch
+            value={firePreventionMeasures}
+            onValueChange={setFirePreventionMeasures}
+          />
+        </Row>
+
+        <Row>
+          <Label>
+            Taking all necessary preventive measures to avoid accidents at the
+            workplace
+          </Label>
+          <Switch
+            value={accidentPrevention}
+            onValueChange={setAccidentPrevention}
+          />
+        </Row>
+
+        <Row>
+          <Label>Drinking Water (Section 18)</Label>
+          <Switch value={drinkingWater} onValueChange={setDrinkingWater} />
+        </Row>
+
+        <Row>
+          <Label>Latrine & Urinal (Section 19)</Label>
+          <Switch value={latrineUrinal} onValueChange={setLatrineUrinal} />
+        </Row>
+
+        <Row>
+          <Label>First Aid (Section 19)</Label>
+          <Switch value={firstAid} onValueChange={setFirstAid} />
+        </Row>
+
+        <Row>
+          <Label>Creche Facility (Section 20)</Label>
+          <Switch value={crecheFacility} onValueChange={setCrecheFacility} />
+        </Row>
+
+        <Row>
+          <Label>Canteen (Section 22)</Label>
+          <Switch value={canteen} onValueChange={setCanteen} />
+        </Row>
+
         {/* ===== SECTION 5: Permanent Workers ===== */}
         <WorkerTable
           title="Number of workers employed (Permanent / Regular Workers)"
-          categories={["Unskilled", "Semi-Skilled", "Skilled"]}
+          categories={["Unskilled", "Semi-Skilled", "Skilled", "Highly Skilled"]}
           data={permanentWorkers}
           onChange={(field, value) =>
             setPermanentWorkers({ ...permanentWorkers, [field]: value })
@@ -1312,7 +1392,7 @@ export default function ASEForm({
         {/* ===== SECTION 6: Temporary/Casual Workers ===== */}
         <WorkerTable
           title="Number of workers employed (Temporary/Casual worker)"
-          categories={["Unskilled", "Semi-Skilled", "Skilled"]}
+          categories={["Unskilled", "Semi-Skilled", "Skilled", "Highly Skilled"]}
           data={temporaryWorkers}
           onChange={(field, value) =>
             setTemporaryWorkers({ ...temporaryWorkers, [field]: value })
@@ -1323,7 +1403,7 @@ export default function ASEForm({
         {/* ===== SECTION 7: Contract Labour ===== */}
         <WorkerTable
           title="Number of workers employed (Contract labour)"
-          categories={["Unskilled", "Semi-Skilled", "Skilled"]}
+          categories={["Unskilled", "Semi-Skilled", "Skilled", "Highly Skilled"]}
           data={contractLabour}
           onChange={(field, value) =>
             setContractLabour({ ...contractLabour, [field]: value })
@@ -1333,7 +1413,7 @@ export default function ASEForm({
         {/* ===== SECTION 8: Rate of Wages Paid ===== */}
         <WorkerTable
           title="Rate of wages paid"
-          categories={["Unskilled", "Semi-Skilled", "Skilled"]}
+          categories={["Unskilled", "Semi-Skilled", "Skilled", "Highly Skilled"]}
           data={wagesPaid}
           onChange={(field, value) =>
             setWagesPaid({ ...wagesPaid, [field]: value })
@@ -1481,33 +1561,28 @@ export default function ASEForm({
         </View>
 
         {/* Directions */}
-        <SectionTitle>Directions <Text style={styles.required}>*</Text></SectionTitle>
-        {directions.map((direction, index) => (
+        <View style={styles.formGroup}>
+          <Label required>Is there any directions to be mentioned?</Label>
+          <SelectDropdown value={hasDirections} onSelect={(value) => { setHasDirections(value); if (value === "No") setDirections([""]); }} options={yesNoOptions} />
+          {errors.has_directions_ase && <ErrorText>{errors.has_directions_ase}</ErrorText>}
+        </View>
+        {hasDirections === "Yes" && directions.map((direction, index) => (
           <View key={index} style={styles.directionRow}>
             <View style={{ flex: 1 }}>
-              <TextInputField
-                value={direction}
-                onChangeText={(val) => updateDirection(index, val)}
-                placeholder="Enter Direction"
-              />
+              <TextInputField value={direction} onChangeText={(val) => updateDirection(index, val)} placeholder="Enter Direction" />
             </View>
             {index === 0 ? (
-              <TouchableOpacity
-                style={styles.addDirectionBtn}
-                onPress={addDirection}
-              >
+              <TouchableOpacity style={styles.addDirectionBtn} onPress={addDirection}>
                 <Text style={styles.addDirectionBtnText}>Add</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.removeDirectionBtn}
-                onPress={() => removeDirection(index)}
-              >
+              <TouchableOpacity style={styles.removeDirectionBtn} onPress={() => removeDirection(index)}>
                 <Text style={styles.removeDirectionBtnText}>Remove</Text>
               </TouchableOpacity>
             )}
           </View>
         ))}
+        {errors.ase_directions && <ErrorText>{errors.ase_directions}</ErrorText>}
 
         {/* Remarks */}
         <View style={styles.formGroup}>

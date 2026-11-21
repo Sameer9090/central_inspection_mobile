@@ -22,6 +22,7 @@ export default function CommonForm({
   application,
   common,
   eodbCommon,
+  eodbAse,
   user,
   onSave,
   gpsAcquiring,
@@ -31,6 +32,7 @@ export default function CommonForm({
   application: any;
   common: any;
   eodbCommon: any;
+  eodbAse: any;
   user: any;
   onSave: (formData: any) => Promise<any>;
   gpsAcquiring?: boolean;
@@ -79,10 +81,21 @@ export default function CommonForm({
   const [district, setDistrict] = useState(normalizedDistrict);
   const [wardNo, setWardNo] = useState(common?.common_data?.establishment?.ward_no || "");
   const [pincode, setPincode] = useState(common?.common_data?.establishment?.pincode || eodbCommon?.establishment?.pincode || "");
-  const [combined, setCombined] = useState(common?.selected_types?.includes("combined") || false);
-  const [ase, setAse] = useState(common?.selected_types?.includes("ase") || false);
   const [contract, setContract] = useState(common?.selected_types?.includes("contract") || false);
   const [minimumWage, setMinimumWage] = useState(common?.selected_types?.includes("minimumwage") || false);
+  const workerCountValue = eodbAse?.no_of_employees;
+  const workerCount = Number(workerCountValue);
+  const hasWorkerCount =
+    workerCountValue !== null &&
+    workerCountValue !== undefined &&
+    String(workerCountValue).trim() !== "" &&
+    Number.isFinite(workerCount) &&
+    workerCount >= 0;
+  const automaticForm = hasWorkerCount
+    ? workerCount > 10
+      ? "combined"
+      : "ase"
+    : null;
   const [dateOfInspection, setDateOfInspection] = useState(
     common?.common_data?.inspector?.date || new Date().toISOString().split("T")[0],
   );
@@ -366,9 +379,17 @@ export default function CommonForm({
     }
 
     try {
-      const formSelector: string[] = [];
-      if (combined) formSelector.push("combined");
-      if (ase) formSelector.push("ase");
+      if (!hasWorkerCount || !automaticForm) {
+        setSaving(false);
+        Alert.alert(
+          "Worker Count Unavailable",
+          "The establishment worker count could not be retrieved from EODB. Please refresh the application details and try again."
+        );
+        return;
+      }
+
+      // The main inspection form is selected automatically from the EODB worker count.
+      const formSelector: string[] = [automaticForm];
       if (contract) formSelector.push("contract");
       if (minimumWage) formSelector.push("minimumwage");
 
@@ -759,20 +780,27 @@ export default function CommonForm({
       {getFieldError("submission_location") ? <Text style={styles.fieldError}>{getFieldError("submission_location")}</Text> : null} */}
 
       <Text style={styles.heading}>Inspection Types <Text style={styles.required}>*</Text></Text>
-      <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
-        <Text>Combined Inspection</Text>
-        <Switch value={combined} onValueChange={setCombined} />
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: "600" }}>
+            {automaticForm === "combined" ? "Combined Inspection" : automaticForm === "ase" ? "ASE Inspection" : "Main Inspection Form"}
+          </Text>
+          <Text style={styles.label}>
+            {hasWorkerCount
+              ? `Automatically selected based on ${workerCount} EODB workers`
+              : "EODB worker count is unavailable"}
+          </Text>
+        </View>
+        <Text style={{ fontWeight: "700", color: automaticForm ? "#2E7D32" : "#C62828" }}>
+          {automaticForm ? "Auto-selected" : "Unavailable"}
+        </Text>
       </View>
       <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
-        <Text>ASE</Text>
-        <Switch value={ase} onValueChange={setAse} />
-      </View>
-      <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
-        <Text>Contract Labour</Text>
+        <Text>Contract Labour (Optional)</Text>
         <Switch value={contract} onValueChange={setContract} />
       </View>
       <View style={[styles.switchRow, hasFieldError("form_selector") && styles.switchRowError]}>
-        <Text>Minimum Wage</Text>
+        <Text>Minimum Wage (Optional)</Text>
         <Switch value={minimumWage} onValueChange={setMinimumWage} />
       </View>
       {getFieldError("form_selector") ? <Text style={styles.fieldError}>{getFieldError("form_selector")}</Text> : null}

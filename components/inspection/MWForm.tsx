@@ -14,6 +14,59 @@ import {
   View
 } from "react-native";
 
+type UploadedDocument = {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number;
+};
+
+type AdolescentDetail = {
+  labour_office_intimation: string;
+  name: string;
+  address: string;
+  age: string;
+  age_proof: UploadedDocument | string | null;
+  age_proof_name: string;
+  hazardous_work: string;
+  working_hours: string;
+  maintain_register: string;
+  wage_amount: string;
+  [key: string]: unknown;
+};
+
+type IndividualWorker = {
+  name: string;
+  designation: string;
+  doj: string;
+  wages: string;
+  payslip: UploadedDocument | string | null;
+  payslip_name: string;
+  [key: string]: unknown;
+};
+
+const createEmptyAdolescent = (): AdolescentDetail => ({
+  labour_office_intimation: "",
+  name: "",
+  address: "",
+  age: "",
+  age_proof: null,
+  age_proof_name: "",
+  hazardous_work: "",
+  working_hours: "",
+  maintain_register: "",
+  wage_amount: "",
+});
+
+const createEmptyWorker = (): IndividualWorker => ({
+  name: "",
+  designation: "",
+  doj: "",
+  wages: "",
+  payslip: null,
+  payslip_name: "",
+});
+
 // ===== Reusable Components (same as ASEForm) =====
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <Text style={styles.sectionTitle}>{children}</Text>
@@ -337,38 +390,22 @@ export default function MWForm({
   );
 
   // ===== SECTION 2: Adolescent Worker Details =====
-  const [adolescentDetails, setAdolescentDetails] = useState(
-    inspectionMW?.adolescent_details_minimumwage || [
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
-    ]
+  const [adolescentDetails, setAdolescentDetails] = useState<AdolescentDetail[]>(
+    ((inspectionMW?.adolescent_details_minimumwage as AdolescentDetail[] | undefined) || [
+      createEmptyAdolescent(),
+    ]).map((item) => ({
+      ...createEmptyAdolescent(),
+      ...item,
+      age_proof_name:
+        item.age_proof_name ||
+        (typeof item.age_proof === "string" ? item.age_proof.split("/").pop() || "" : ""),
+    }))
   );
 
   const addAdolescent = () => {
     setAdolescentDetails([
       ...adolescentDetails,
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
+      createEmptyAdolescent(),
     ]);
   };
 
@@ -378,7 +415,7 @@ export default function MWForm({
     }
   };
 
-  const updateAdolescent = (index: number, field: string, value: any) => {
+  const updateAdolescent = (index: number, field: string, value: unknown) => {
     setAdolescentDetails(prev => {
       const updated = [...prev];
       updated[index] = {
@@ -392,7 +429,7 @@ export default function MWForm({
   const pickAgeProofDocument = async (index: number) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
+        type: ["image/jpeg", "image/png"],
         copyToCacheDirectory: true,
       });
 
@@ -407,7 +444,7 @@ export default function MWForm({
             age_proof: {
               uri: file.uri,
               name: file.name,
-              type: file.mimeType || "application/octet-stream",
+              type: file.mimeType || "image/jpeg",
               size: file.size,
             },
             age_proof_name: file.name,
@@ -535,17 +572,23 @@ export default function MWForm({
   );
 
   // ===== SECTION 7: Individual Workers =====
-  const [individualWorkers, setIndividualWorkers] = useState(
-    inspectionMW?.workers_detail_mw || [
-      { name: "", designation: "", doj: "", wages: "", payslip: null, payslip_name: "" },
-    ]
+  const [individualWorkers, setIndividualWorkers] = useState<IndividualWorker[]>(
+    ((inspectionMW?.workers_detail_mw as IndividualWorker[] | undefined) || [
+      createEmptyWorker(),
+    ]).map((worker) => ({
+      ...createEmptyWorker(),
+      ...worker,
+      payslip_name:
+        worker.payslip_name ||
+        (typeof worker.payslip === "string" ? worker.payslip.split("/").pop() || "" : ""),
+    }))
   );
   const [activeDateIndex, setActiveDateIndex] = useState<number | null>(null);
 
   const addWorker = () => {
     setIndividualWorkers([
       ...individualWorkers,
-      { name: "", designation: "", doj: "", wages: "", payslip: null, payslip_name: "" },
+      createEmptyWorker(),
     ]);
   };
 
@@ -555,7 +598,7 @@ export default function MWForm({
     }
   };
 
-  const updateWorker = (index: number, field: string, value: any) => {
+  const updateWorker = (index: number, field: string, value: unknown) => {
     const updated = [...individualWorkers];
     updated[index] = { ...updated[index], [field]: value };
     setIndividualWorkers(updated);
@@ -564,7 +607,7 @@ export default function MWForm({
   const pickPayslip = async (index: number) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
+        type: ["application/pdf", "image/jpeg", "image/png"],
         copyToCacheDirectory: true,
       });
       if (result.canceled === false) {
@@ -572,7 +615,7 @@ export default function MWForm({
         updateWorker(index, 'payslip', {
           uri: file.uri,
           name: file.name,
-          type: file.mimeType,
+          type: file.mimeType || "application/pdf",
           size: file.size,
         });
         updateWorker(index, 'payslip_name', file.name);
@@ -593,8 +636,19 @@ export default function MWForm({
   };
 
   // ===== SECTION 8: Directions =====
-  const [directions, setDirections] = useState(
-    inspectionMW?.minimumwage_directions || [""]
+  const [directions, setDirections] = useState<string[]>(
+    Array.isArray(inspectionMW?.minimumwage_directions) && inspectionMW.minimumwage_directions.length
+      ? inspectionMW.minimumwage_directions
+      : [""]
+  );
+  const [hasDirections, setHasDirections] = useState<string>(
+    ["Yes", "No"].includes(inspectionMW?.has_directions_minimumwage)
+      ? inspectionMW.has_directions_minimumwage
+      : ["Yes", "No"].includes(inspectionMW?.minimumwage_has_directions)
+        ? inspectionMW.minimumwage_has_directions
+        : Array.isArray(inspectionMW?.minimumwage_directions) && inspectionMW.minimumwage_directions.some((item: any) => String(item ?? "").trim())
+          ? "Yes"
+          : ""
   );
 
   const addDirection = () => setDirections([...directions, ""]);
@@ -620,35 +674,22 @@ export default function MWForm({
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!issueOfAppointmentLetters) newErrors.issue_of_appointment_letters_mw = "Required";
-    if (!issueOfIdentityCard) newErrors.issue_of_identity_card_mw = "Required";
-    if (!issueOfPayslip) newErrors.issue_of_payslip_mw = "Required";
-    if (!applicableOfESIC) newErrors.applicable_of_ESIC_mw = "Required";
-    if (!maintenanceOfRegisters) newErrors.maintenance_of_registers_mw = "Required";
-    if (!annualRepSubmitted) newErrors.whether_annual_rep_submitted_mw = "Required";
-    if (!isAdolescentEmployed) newErrors.is_adolescent_employed_mw = "Required";
+    if (!hasDirections) {
+      newErrors.has_directions_minimumwage = "Please select Yes or No";
+    } else if (hasDirections === "Yes") {
+      const enteredDirections = directions.map((item) => String(item ?? "").trim());
+      if (!enteredDirections.some(Boolean)) {
+        newErrors.minimumwage_directions = "Please enter at least one direction";
+      } else if (enteredDirections.some((item) => item.length > 255)) {
+        newErrors.minimumwage_directions = "Each direction must not exceed 255 characters";
+      } else if (enteredDirections.some((item) => !item)) {
+        newErrors.minimumwage_directions = "Please complete or remove empty direction fields";
+      }
+    }
 
-    if (!masterRollMaintained) newErrors.whether_master_roll_maintained = "Required";
-    if (!registerOfWagesMaintained) newErrors.whether_register_of_wages_maintained = "Required";
-    if (!fineDeductionsRecorded) newErrors.whether_fine_deductions_recorded_appropriately = "Required";
-    if (!wageSlipsPrescribed) newErrors.whether_wage_slips_prescribed = "Required";
-    if (!annualReturnForm3) newErrors.whether_annual_return_form3_submitted = "Required";
-    if (!overtimeRegistered) newErrors.whether_overtime_registered = "Required";
-    if (!weeklyRestAllowed) newErrors.whether_weekly_rest_is_allowed = "Required";
-    if (!noticesDisplayed) newErrors.whether_notices_displayed_abstract_name_schedule = "Required";
-    if (!minWagesGovtPaid) newErrors.whether_minimum_wages_fixed_by_govt_paid = "Required";
-
-    if (!registerFinesMaintained) newErrors.whether_register_fines_maintained = "Required";
-    if (!registerDeductionDamage) newErrors.whether_register_deduction_for_damage_maintained = "Required";
-    if (!registerFinesRule5) newErrors.whether_register_fines_maintained_rule5 = "Required";
-    if (!wagesPaidOnTime) newErrors.whether_wages_paid_on_time = "Required";
-    if (!salariesInBank) newErrors.whether_salaries_paid_in_their_bank_accounts = "Required";
-    if (!annualReturnRule17) newErrors.whether_annual_return_submitted_rule17 = "Required";
-
-    if (!equalRemuneration) newErrors.whether_equal_renumeration_paid_men_women_workers = "Required";
-    if (!registerMaintainedSection8) newErrors.whether_register_maintained_by_employes_section8 = "Required";
-
-    if (!additionalRemarks.trim()) newErrors.additional_remarks3 = "Required";
+    if (!additionalRemarks.trim()) {
+      newErrors.additional_remarks3 = "Required";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -721,7 +762,10 @@ export default function MWForm({
       })),
 
       // Directions & Remarks
-      minimumwage_directions: directions,
+      has_directions_minimumwage: hasDirections,
+      minimumwage_directions: hasDirections === "Yes"
+        ? directions.map((item) => String(item ?? "").trim()).filter(Boolean)
+        : [],
       additional_remarks3: additionalRemarks,
     };
 
@@ -740,7 +784,7 @@ export default function MWForm({
         <SectionTitle>Minimum Wage Observations</SectionTitle>
 
         <View style={styles.formGroup}>
-          <Label required>1. Issue of appointment letters</Label>
+          <Label>1. Issue of appointment letters</Label>
           <SelectDropdown
             value={issueOfAppointmentLetters}
             onSelect={setIssueOfAppointmentLetters}
@@ -752,7 +796,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>2. Issue of identity cards</Label>
+          <Label>2. Issue of identity cards</Label>
           <SelectDropdown
             value={issueOfIdentityCard}
             onSelect={setIssueOfIdentityCard}
@@ -764,7 +808,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>3. Issue of payslips</Label>
+          <Label>3. Issue of payslips</Label>
           <SelectDropdown
             value={issueOfPayslip}
             onSelect={setIssueOfPayslip}
@@ -776,7 +820,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>4. Applicability of ESIC</Label>
+          <Label>4. Applicability of ESIC</Label>
           <SelectDropdown
             value={applicableOfESIC}
             onSelect={(val) => {
@@ -799,7 +843,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>5. Maintenance of registers against each employee</Label>
+          <Label>5. Maintenance of registers against each employee</Label>
           <SelectDropdown
             value={maintenanceOfRegisters}
             onSelect={setMaintenanceOfRegisters}
@@ -811,7 +855,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>6. Whether annual return is submitted</Label>
+          <Label>6. Whether annual return is submitted</Label>
           <SelectDropdown
             value={annualRepSubmitted}
             onSelect={setAnnualRepSubmitted}
@@ -823,7 +867,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>7. Has any adolescent been employed?</Label>
+          <Label>7. Has any adolescent been employed?</Label>
           <SelectDropdown
             value={isAdolescentEmployed}
             onSelect={setIsAdolescentEmployed}
@@ -855,7 +899,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>
+                  <Label>
                     a. Whether intimation has been provided to Labour Office
                   </Label>
                   <SelectDropdown
@@ -868,7 +912,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>b. Name of the adolescent</Label>
+                  <Label>b. Name of the adolescent</Label>
                   <TextInputField
                     value={adolescent.name}
                     onChangeText={(val) => updateAdolescent(index, "name", val)}
@@ -877,7 +921,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>c. Address of the adolescent</Label>
+                  <Label>c. Address of the adolescent</Label>
                   <TextInputField
                     value={adolescent.address}
                     onChangeText={(val) => updateAdolescent(index, "address", val)}
@@ -886,7 +930,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>d. Age of the adolescent</Label>
+                  <Label>d. Age of the adolescent</Label>
                   <NumberInput
                     value={adolescent.age}
                     onChangeText={(val) => updateAdolescent(index, "age", val)}
@@ -895,7 +939,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>e. Age proof (Upload document)</Label>
+                  <Label>e. Age proof (Upload document)</Label>
                   <TouchableOpacity
                     style={styles.uploadBtn}
                     onPress={() => pickAgeProofDocument(index)}
@@ -907,7 +951,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>f. Whether engaged in hazardous occupations</Label>
+                  <Label>f. Whether engaged in hazardous occupations</Label>
                   <SelectDropdown
                     value={adolescent.hazardous_work}
                     onSelect={(val) => updateAdolescent(index, "hazardous_work", val)}
@@ -916,7 +960,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>g. Working hours</Label>
+                  <Label>g. Working hours</Label>
                   <TextInputField
                     value={adolescent.working_hours}
                     onChangeText={(val) => updateAdolescent(index, "working_hours", val)}
@@ -925,7 +969,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>h. Whether maintains register or not</Label>
+                  <Label>h. Whether maintains register or not</Label>
                   <SelectDropdown
                     value={adolescent.maintain_register}
                     onSelect={(val) => updateAdolescent(index, "maintain_register", val)}
@@ -934,7 +978,7 @@ export default function MWForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>i. Wage paid to the adolescent</Label>
+                  <Label>i. Wage paid to the adolescent</Label>
                   <NumberInput
                     value={adolescent.wage_amount}
                     onChangeText={(val) => updateAdolescent(index, "wage_amount", val)}
@@ -953,7 +997,7 @@ export default function MWForm({
         <SectionTitle>A) Observations under Code of Wages</SectionTitle>
 
         <View style={styles.formGroup}>
-          <Label required>1. Whether Muster-roll maintained? [Section 50]</Label>
+          <Label>1. Whether Muster-roll maintained? [Section 50]</Label>
           <SelectDropdown
             value={masterRollMaintained}
             onSelect={setMasterRollMaintained}
@@ -965,7 +1009,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>2. Whether Register of wages maintained? [Section 50]</Label>
+          <Label>2. Whether Register of wages maintained? [Section 50]</Label>
           <SelectDropdown
             value={registerOfWagesMaintained}
             onSelect={setRegisterOfWagesMaintained}
@@ -977,7 +1021,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>3. Whether fine and deductions recorded in appropriate register?</Label>
+          <Label>3. Whether fine and deductions recorded in appropriate register?</Label>
           <SelectDropdown
             value={fineDeductionsRecorded}
             onSelect={setFineDeductionsRecorded}
@@ -989,7 +1033,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>4. Whether Wage Slips in prescribed form issued?</Label>
+          <Label>4. Whether Wage Slips in prescribed form issued?</Label>
           <SelectDropdown
             value={wageSlipsPrescribed}
             onSelect={setWageSlipsPrescribed}
@@ -1001,7 +1045,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>5. Whether Annual Return in Form III submitted?</Label>
+          <Label>5. Whether Annual Return in Form III submitted?</Label>
           <SelectDropdown
             value={annualReturnForm3}
             onSelect={setAnnualReturnForm3}
@@ -1022,7 +1066,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>7. Whether Overtime Register maintained? [Section 50]</Label>
+          <Label>7. Whether Overtime Register maintained? [Section 50]</Label>
           <SelectDropdown
             value={overtimeRegistered}
             onSelect={setOvertimeRegistered}
@@ -1043,7 +1087,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>9. Whether weekly rest is allowed to workers? [Section 50]</Label>
+          <Label>9. Whether weekly rest is allowed to workers? [Section 50]</Label>
           <SelectDropdown
             value={weeklyRestAllowed}
             onSelect={setWeeklyRestAllowed}
@@ -1055,7 +1099,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>10. Whether notices are displayed (Abstract, Inspector, Schedule)?</Label>
+          <Label>10. Whether notices are displayed (Abstract, Inspector, Schedule)?</Label>
           <SelectDropdown
             value={noticesDisplayed}
             onSelect={setNoticesDisplayed}
@@ -1067,7 +1111,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>11. Whether minimum wages fixed by Govt. are being paid? [Section 5]</Label>
+          <Label>11. Whether minimum wages fixed by Govt. are being paid? [Section 5]</Label>
           <SelectDropdown
             value={minWagesGovtPaid}
             onSelect={setMinWagesGovtPaid}
@@ -1091,7 +1135,7 @@ export default function MWForm({
         <SectionTitle>B) Observations under Code On Wages (Payment of Wages)</SectionTitle>
 
         <View style={styles.formGroup}>
-          <Label required>1. Whether Register of fines maintained? [Section 50]</Label>
+          <Label>1. Whether Register of fines maintained? [Section 50]</Label>
           <SelectDropdown
             value={registerFinesMaintained}
             onSelect={setRegisterFinesMaintained}
@@ -1103,7 +1147,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>2. Whether Register of Deduction for damage/loss maintained?</Label>
+          <Label>2. Whether Register of Deduction for damage/loss maintained?</Label>
           <SelectDropdown
             value={registerDeductionDamage}
             onSelect={setRegisterDeductionDamage}
@@ -1115,7 +1159,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>3. Whether Register of wages maintained? [Section 50]</Label>
+          <Label>3. Whether Register of wages maintained? [Section 50]</Label>
           <SelectDropdown
             value={registerFinesRule5}
             onSelect={setRegisterFinesRule5}
@@ -1127,7 +1171,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>4. Whether wages are paid on time? [Section 17]</Label>
+          <Label>4. Whether wages are paid on time? [Section 17]</Label>
           <SelectDropdown
             value={wagesPaidOnTime}
             onSelect={setWagesPaidOnTime}
@@ -1139,7 +1183,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>5. Whether salaries/wages paid in bank accounts?</Label>
+          <Label>5. Whether salaries/wages paid in bank accounts?</Label>
           <SelectDropdown
             value={salariesInBank}
             onSelect={setSalariesInBank}
@@ -1151,7 +1195,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>6. Whether Annual Return submitted in Form IV?</Label>
+          <Label>6. Whether Annual Return submitted in Form IV?</Label>
           <SelectDropdown
             value={annualReturnRule17}
             onSelect={setAnnualReturnRule17}
@@ -1166,7 +1210,7 @@ export default function MWForm({
         <SectionTitle>C) Observations under Equal Remuneration</SectionTitle>
 
         <View style={styles.formGroup}>
-          <Label required>1. Whether equal remuneration paid to men and women for same work?</Label>
+          <Label>1. Whether equal remuneration paid to men and women for same work?</Label>
           <SelectDropdown
             value={equalRemuneration}
             onSelect={setEqualRemuneration}
@@ -1178,7 +1222,7 @@ export default function MWForm({
         </View>
 
         <View style={styles.formGroup}>
-          <Label required>2. Whether register is maintained by employer? (Section 8)</Label>
+          <Label>2. Whether register is maintained by employer? (Section 8)</Label>
           <SelectDropdown
             value={registerMaintainedSection8}
             onSelect={setRegisterMaintainedSection8}
@@ -1246,7 +1290,7 @@ export default function MWForm({
             </View>
 
             <View style={styles.formGroup}>
-              <Label required>Name</Label>
+              <Label>Name</Label>
               <TextInputField
                 value={worker.name}
                 onChangeText={(val) => updateWorker(index, "name", val)}
@@ -1255,7 +1299,7 @@ export default function MWForm({
             </View>
 
             <View style={styles.formGroup}>
-              <Label required>Designation</Label>
+              <Label>Designation</Label>
               <TextInputField
                 value={worker.designation}
                 onChangeText={(val) => updateWorker(index, "designation", val)}
@@ -1264,7 +1308,7 @@ export default function MWForm({
             </View>
 
             <View style={styles.formGroup}>
-              <Label required>Date of Joining</Label>
+              <Label>Date of Joining</Label>
               <TouchableOpacity
                 style={styles.datePickerButton}
                 onPress={() => setActiveDateIndex(index)}
@@ -1286,7 +1330,7 @@ export default function MWForm({
             </View>
 
             <View style={styles.formGroup}>
-              <Label required>Wages Paid</Label>
+              <Label>Wages Paid</Label>
               <NumberInput
                 value={worker.wages}
                 onChangeText={(val) => updateWorker(index, "wages", val)}
@@ -1311,36 +1355,38 @@ export default function MWForm({
           <Text style={styles.addBtnText}>Add Another Worker</Text>
         </TouchableOpacity>
 
-        {/* ===== SECTION 8: Directions ===== */}
-        <SectionTitle>
-          Directions <Text style={styles.required}>*</Text>
-        </SectionTitle>
-        {directions.map((direction, index) => (
-          <View key={index} style={styles.directionRow}>
-            <View style={{ flex: 1 }}>
-              <TextInputField
-                value={direction}
-                onChangeText={(val) => updateDirection(index, val)}
-                placeholder="Enter Direction"
-              />
-            </View>
-            {index === 0 ? (
-              <TouchableOpacity
-                style={styles.addDirectionBtn}
-                onPress={addDirection}
-              >
-                <Text style={styles.addDirectionBtnText}>Add</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.removeDirectionBtn}
-                onPress={() => removeDirection(index)}
-              >
-                <Text style={styles.removeDirectionBtnText}>Remove</Text>
-              </TouchableOpacity>
+        {/* ===== SECTION 8: Conditional Directions ===== */}
+        <View style={styles.formGroup}>
+          <Label required>Are any directions required?</Label>
+          <SelectDropdown value={hasDirections} onSelect={setHasDirections} options={yesNoOptions} placeholder="Select Yes or No" />
+          {errors.has_directions_minimumwage && (
+            <ErrorText>{errors.has_directions_minimumwage}</ErrorText>
+          )}
+        </View>
+        {hasDirections === "Yes" && (
+          <>
+            <SectionTitle>Directions</SectionTitle>
+            {directions.map((direction, index) => (
+              <View key={index} style={styles.directionRow}>
+                <View style={{ flex: 1 }}>
+                  <TextInputField value={direction} onChangeText={(val) => updateDirection(index, val)} placeholder="Enter Direction" maxLength={255} />
+                </View>
+                {index === 0 ? (
+                  <TouchableOpacity style={styles.addDirectionBtn} onPress={addDirection}>
+                    <Text style={styles.addDirectionBtnText}>Add</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.removeDirectionBtn} onPress={() => removeDirection(index)}>
+                    <Text style={styles.removeDirectionBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {errors.minimumwage_directions && (
+              <ErrorText>{errors.minimumwage_directions}</ErrorText>
             )}
-          </View>
-        ))}
+          </>
+        )}
 
         {/* ===== SECTION 9: Additional Remarks ===== */}
         <View style={styles.formGroup}>

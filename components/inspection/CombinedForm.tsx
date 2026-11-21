@@ -77,6 +77,13 @@ export default function CombinedForm({ inspectionCombined = {}, user, onSave, on
     Array.isArray(inspectionCombined.combined_directions) && inspectionCombined.combined_directions.length
       ? inspectionCombined.combined_directions.map((x: any) => typeof x === "string" ? x : x?.direction || "") : [""]
   );
+  const [hasDirections, setHasDirections] = useState<string>(
+    inspectionCombined.combined_has_directions === "Yes" || inspectionCombined.combined_has_directions === "No"
+      ? inspectionCombined.combined_has_directions
+      : Array.isArray(inspectionCombined.combined_directions) && inspectionCombined.combined_directions.some((x: any) =>
+          (typeof x === "string" ? x : x?.direction || "").trim()
+        ) ? "Yes" : ""
+  );
   const [photo, setPhoto] = useState<any>(null);
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -114,12 +121,18 @@ export default function CombinedForm({ inspectionCombined = {}, user, onSave, on
   };
 
   const save = () => {
+    if (!hasDirections) {
+      Alert.alert("Required", "Please select whether any directions are required (Yes or No).");
+      return;
+    }
     onSave?.({
       ...form,
       reference_number: form.reference_number || referenceNumber || "",
       registration_number: form.registration_number || eodbAse?.registration_number || "",
       nature_of_activity: form.nature_of_activity || eodbAse?.nature_of_business || "",
       inspection_type: "combined",
+      combined_has_directions: hasDirections,
+      // Keep entered directions in the saved data even when the inspector selects No.
       combined_directions: directions.map(x => x.trim()).filter(Boolean),
       // The parent submission handler must append this file to FormData as combined_violation_photo.
       combined_violation_photo: photo || form.combined_violation_photo || null,
@@ -169,12 +182,38 @@ export default function CombinedForm({ inspectionCombined = {}, user, onSave, on
         <Text style={s.label}>Violation Evidence Photo</Text>
         <TouchableOpacity style={s.upload} onPress={pickPhoto}><Text style={s.uploadText}>{photo?.name || (form.combined_violation_photo ? "Previously uploaded photo" : "Select Photo")}</Text></TouchableOpacity>
       </View>
-      <Text style={s.label}>Directions</Text>
-      {directions.map((v, i) => <View key={i} style={s.directionRow}>
-        <TextInput value={v} onChangeText={text => setDirections(prev => prev.map((x, n) => n === i ? text : x))} multiline placeholder={`Direction ${i + 1}`} style={[s.input, s.directionInput]} />
-        {directions.length > 1 && <TouchableOpacity onPress={() => setDirections(prev => prev.filter((_, n) => n !== i))} style={s.remove}><Text style={s.removeText}>−</Text></TouchableOpacity>}
-      </View>)}
-      <TouchableOpacity style={s.add} onPress={() => setDirections(prev => [...prev, ""])}><Text style={s.addText}>+ Add Direction</Text></TouchableOpacity>
+      <View style={s.field}>
+        <Text style={s.label}>Are any directions required?</Text>
+        <View style={s.options}>
+          {["Yes", "No"].map(value => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => setHasDirections(value)}
+              style={[s.option, hasDirections === value && s.selected]}
+            >
+              <Text style={[s.optionText, hasDirections === value && s.selectedText]}>{value}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      {hasDirections === "Yes" && <>
+        <Text style={s.label}>Directions</Text>
+        {directions.map((v, i) => <View key={i} style={s.directionRow}>
+          <TextInput
+            value={v}
+            onChangeText={text => setDirections(prev => prev.map((x, n) => n === i ? text : x))}
+            multiline
+            placeholder={`Direction ${i + 1}`}
+            style={[s.input, s.directionInput]}
+          />
+          {directions.length > 1 && <TouchableOpacity onPress={() => setDirections(prev => prev.filter((_, n) => n !== i))} style={s.remove}>
+            <Text style={s.removeText}>−</Text>
+          </TouchableOpacity>}
+        </View>)}
+        <TouchableOpacity style={s.add} onPress={() => setDirections(prev => [...prev, ""])}>
+          <Text style={s.addText}>+ Add Direction</Text>
+        </TouchableOpacity>
+      </>}
       {input("Compliance Deadline", "combined_compliance_deadline")}
       {input("Follow-up Date", "combined_followup_date")}
       <ReadOnly

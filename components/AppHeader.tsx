@@ -27,7 +27,7 @@ const MENU_ITEMS = [
   { icon: "home" as const, label: "Dashboard", route: "/dashboard", replace: true },
   { icon: "file-text" as const, label: "Track Application", route: "/track", replace: false },
   { icon: "bell" as const, label: "Notifications", route: "/notifications", replace: false },
-];
+] as const;
 
 export default function AppHeader() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -73,7 +73,7 @@ export default function AppHeader() {
   }, [menuAnim, fadeAnim]);
 
   const handleNavigation = useCallback(
-    (route: string, replace: boolean) => {
+    (route: (typeof MENU_ITEMS)[number]["route"], replace: boolean) => {
       closeMenu();
       setTimeout(() => {
         if (replace) {
@@ -87,27 +87,39 @@ export default function AppHeader() {
   );
 
   const logout = useCallback(async () => {
+    setLogoutModalVisible(false);
+
+    let token: string | null = null;
+
     try {
-      setLogoutModalVisible(false);
-      const token = await AsyncStorage.getItem("token");
-
-      if (token) {
-        await API.post(
-          "/logout",
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-      }
-
-      await AsyncStorage.multiRemove(["token", "user"]);
-      await refreshUnreadCount();
-      router.replace("/login");
-    } catch (error) {
-      console.error("Logout failed:", error);
+      token = await AsyncStorage.getItem("token");
+    } catch {
+      // Continue with local logout even if reading the token fails.
     }
-  }, [refreshUnreadCount]);
+
+    try {
+      // Remove only the online API token. Do not clear the offline profile,
+      // offline authentication verifier, SQLite database, drafts or queue.
+      await AsyncStorage.removeItem("token");
+    } catch {
+      console.error("Could not clear the saved API token.");
+      return;
+    }
+
+    // Leave the account immediately; never wait for the server.
+    router.replace("/login");
+
+    // Server-side revocation is best-effort and must not block local logout.
+    if (token) {
+      API.post(
+        "/logout",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => {
+        console.warn("Server logout unavailable; local logout completed.");
+      });
+    }
+  }, []);
 
   return (
     <>

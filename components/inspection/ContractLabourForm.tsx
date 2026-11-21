@@ -175,6 +175,77 @@ const TextInputField = ({
   />
 );
 
+// Website Blade-aligned Contract Labour provisions (items 1–38).
+const contractProvisionFields = [
+  ["whether_license_obtained", "1. Whether License obtained while executing contract work through contract labour [Section 47]"],
+  ["whether_contract_labour_numbering", "2. Whether contract labour exceeds maximum number specified in licence [Section 48]"],
+  ["whether_notices_regarding_rates_of_wages", "3. Whether notices regarding rates of wages, hours of work, wage period etc. displayed [Section 31(1)]"],
+  ["whether_copy_of_each_notice_displayed", "4. Whether copy of displayed notices sent to Inspector [Section 31(2)]"],
+  ["electronic_wage_disbursement_and_digital_intimation_contract", "5. Whether electronic wage disbursement is maintained and intimated digitally to the Principal Employer with proof? [Section 55(2)]"],
+  ["whether_intimation_of_commencement", "6. Whether intimation of commencement/completion submitted within 30 days [Section 5(1)]"],
+  ["whether_half_yearly_return", "7. Whether Yearly Return in Form X submitted [Section 33(d)]"],
+  ["whether_contractor_ensured_payment_of_wages", "8. Whether contractor ensured payment of wages within prescribed time [Section 55(1)]"],
+  ["whether_register_of_person_maintained", "9. Whether register of persons employed maintained [Section 33(a)]"],
+  ["whether_wage_register_maintained", "10. Whether wage register maintained [Section 33(a)]"],
+  ["whether_welfare_facilities_regarding_drinking_water", "11. Whether welfare facilities provided (water, latrine, washing) [Section 53]"],
+  ["whether_contractor_creche_facility", "12. Whether creche facility provided [Section 53]"],
+  ["whether_contractor_provides_canteen_facility", "13. Whether canteen facility provided when 100+ contract labour employed [Section 53]"],
+  ["whether_contractor_prvides_rest_rooms", "14. Whether rest rooms provided for night halt [Section 53]"],
+  ["whether_first_aid_provided", "15. Whether first aid facilities provided [Section 53]"],
+  ["issue_of_appointment_letters_contract", "16. Whether Letter of Appointment issued to each worker [Section 6(1)(f)]"],
+  ["whether_contractor_issued_service_certificate", "17. Whether experience certificate issued on termination [Section 56]"],
+  ["whether_wage_slips_formxix_issued", "18. Whether wage slips in Form XIX issued before wage disbursement [Section 33]"],
+  ["safe_workplace_and_machinery_contract", "19. Whether safe workplace and machinery provided? [Section 6 and Section 18]"],
+  ["ppe_provided_contract", "20. Whether PPE provided? [Section 82(d)]"],
+  ["fire_prevention_measures_contract", "21. Whether fire safety and emergency arrangement provided? [Section 80, 84(4)]"],
+  ["safety_instructions_and_training_contract", "22. Whether Safety instructions and training provided? [Section 6(2)(c)]"],
+  ["cleanliness_workplace_contract", "23. Whether proper cleanliness and hygiene is maintained at the workplace? [Section 23(2)(i)]"],
+  ["adequate_lighting_contract", "24. Whether adequate lighting is provided in all work areas? [Section 23(2)(vii)]"],
+  ["proper_ventilation_contract", "25. Whether proper ventilation and suitable temperature are maintained for a healthy working environment? [Section 23(2)(ii)]"],
+  ["issue_of_identity_card_contract", "26. Whether Identity Cards have been issued to all contract workers? [Section 33(a)]"],
+  ["valid_establishment_registration_certificate_contract", "27. Whether the establishment has obtained a valid Establishment Registration Certificate? [Section 3(3)]"],
+  ["contractor_work_order_intimation_to_principal_employer_contract", "28. Whether the Contractor has intimated the Principal Employer upon receiving the Work Order? [Section 50(1)]"],
+  ["electronic_wage_payment_documentary_proof_contract", "29. Whether documentary proof (bank statements/NEFT records) of electronic wage payment is maintained? [Section 55(2)]"],
+  ["leave_and_holiday_registers_maintained_contract", "30. Whether leave and holiday registers are maintained in the prescribed format? [Section 32 and Section 33(a)(v)]"],
+  ["accident_injury_dangerous_occurrence_records_contract", "31. Whether accident, injury, and dangerous occurrence records are properly maintained? [Section 10 and Section 33(a)(v)]"],
+  ["medical_examination_and_health_records_contract", "32. Whether medical examination and health records of workers are maintained, where applicable? [Section 6(1)(c) and Section 85(c)]"],
+  ["is_adolescent_employed_contract", "33. Has any adolescent been employed, and if so, are the specific registers maintained? [Section 32(1)(ii) and Section 33(a)(vii)]"],
+  ["wages_paid_at_applicable_rates_contract", "34. Whether wages paid at applicable rates? [Section 5 under Code on Wages, 2019]"],
+  ["wages_paid_within_prescribed_time_code_wages_contract", "35. Whether wages paid within prescribed time? [Section 17 under Code on Wages, 2019]"],
+  ["unauthorised_wage_deductions_contract", "36. Whether unauthorized/unlawful wage deductions happen? [Section 18 under Code on Wages, 2019]"],
+  ["establishment_registered_and_covered_epfo_esic_contract", "37. Whether the establishment is registered and covered under EPFO and ESIC? [Section 3 read with the First Schedule]"],
+  ["construction_workers_registered_bocw_welfare_board_contract", "38. Whether the construction workers are registered as beneficiaries under the BOCW Welfare Board? [Section 106]"],
+] as const;
+
+type AdolescentDetail = {
+  labour_office_intimation: string;
+  name: string;
+  address: string;
+  age: string;
+  age_proof:
+    | { uri: string; name: string; type: string; size?: number }
+    | string
+    | null;
+  age_proof_name: string;
+  hazardous_work: string;
+  working_hours: string;
+  maintain_register: string;
+  wage_amount: string;
+};
+
+const createEmptyAdolescent = (): AdolescentDetail => ({
+  labour_office_intimation: "",
+  name: "",
+  address: "",
+  age: "",
+  age_proof: null,
+  age_proof_name: "",
+  hazardous_work: "",
+  working_hours: "",
+  maintain_register: "",
+  wage_amount: "",
+});
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -196,83 +267,15 @@ export default function ContractLabourForm({
   sectionsStatus?: Record<string, boolean>;
   referenceNumber?: string;
 }) {
-  // ===== SECTION 1: Workplace Safety and Health Measures =====
-  const [cleanlinessWorkplace, setCleanlinessWorkplace] = useState(
-    inspectionContract?.cleanliness_workplace_contract === "Yes"
-  );
-  const [adequateLighting, setAdequateLighting] = useState(
-    inspectionContract?.adequate_lighting_contract === "Yes"
-  );
-  const [properVentilation, setProperVentilation] = useState(
-    inspectionContract?.proper_ventilation_contract === "Yes"
-  );
-  const [firePreventionMeasures, setFirePreventionMeasures] = useState(
-    inspectionContract?.fire_prevention_measures_contract === "Yes"
-  );
-  const [accidentPrevention, setAccidentPrevention] = useState(
-    inspectionContract?.accident_prevention_contract === "Yes"
-  );
-
-  // ===== SECTION 2: Inspection Criteria Table =====
-  const [issueOfAppointmentLetters, setIssueOfAppointmentLetters] = useState(
-    inspectionContract?.issue_of_appointment_letters_contract || ""
-  );
-  const [issueOfIdentityCard, setIssueOfIdentityCard] = useState(
-    inspectionContract?.issue_of_identity_card_contract || ""
-  );
-  const [issueOfPayslip, setIssueOfPayslip] = useState(
-    inspectionContract?.issue_of_payslip_contract || ""
-  );
-  const [applicableOfESIC, setApplicableOfESIC] = useState(
-    inspectionContract?.applicable_of_ESIC_contract || ""
-  );
-  const [esicNoOfEmpl, setEsicNoOfEmpl] = useState(
-    inspectionContract?.ESIC_contract_no_of_empl || ""
-  );
-  const [maintenanceOfRegisters, setMaintenanceOfRegisters] = useState(
-    inspectionContract?.maintenance_of_registers_contract || ""
-  );
-  const [annualRepSubmitted, setAnnualRepSubmitted] = useState(
-    inspectionContract?.whether_annual_rep_submitted_contract || ""
-  );
-  const [isAdolescentEmployed, setIsAdolescentEmployed] = useState(
-    inspectionContract?.is_adolescent_employed_contract || ""
-  );
-
   // ===== SECTION 3: Adolescent Worker Details =====
-  const [adolescentDetails, setAdolescentDetails] = useState(
-    inspectionContract?.adolescent_details_contract || [
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
-    ]
+  const [adolescentDetails, setAdolescentDetails] = useState<AdolescentDetail[]>(
+    Array.isArray(inspectionContract?.adolescent_details_contract) && inspectionContract.adolescent_details_contract.length
+      ? inspectionContract.adolescent_details_contract as AdolescentDetail[]
+      : [createEmptyAdolescent()]
   );
 
   const addAdolescent = () => {
-    setAdolescentDetails([
-      ...adolescentDetails,
-      {
-        labour_office_intimation: "",
-        name: "",
-        address: "",
-        age: "",
-        age_proof: null,
-        age_proof_name: "",
-        hazardous_work: "",
-        working_hours: "",
-        maintain_register: "",
-        wage_amount: "",
-      },
-    ]);
+    setAdolescentDetails((previous) => [...previous, createEmptyAdolescent()]);
   };
 
   const removeAdolescent = (index: number) => {
@@ -282,7 +285,7 @@ export default function ContractLabourForm({
   };
 
   const updateAdolescent = (index: number, field: string, value: any) => {
-    setAdolescentDetails(prev => {
+    setAdolescentDetails((prev) => {
       const updated = [...prev];
       updated[index] = {
         ...updated[index],
@@ -295,14 +298,18 @@ export default function ContractLabourForm({
   const pickAgeProofDocument = async (index: number) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
+        type: ["application/pdf", "image/jpeg", "image/png"],
         copyToCacheDirectory: true,
       });
 
       if (!result.canceled) {
         const file = result.assets[0];
+        if (typeof file.size === "number" && file.size > 10 * 1024 * 1024) {
+          Alert.alert("File Too Large", "Age-proof documents must not exceed 10 MB.");
+          return;
+        }
 
-        setAdolescentDetails(prev => {
+        setAdolescentDetails((prev) => {
           const updated = [...prev];
 
           updated[index] = {
@@ -326,77 +333,29 @@ export default function ContractLabourForm({
     }
   };
 
-  // ===== SECTION 4: Contract Labour Provisions Table =====
-  const [whetherLicenseObtained, setWhetherLicenseObtained] = useState(
-    inspectionContract?.whether_license_obtained || ""
-  );
-  const [whetherContractLabourNumbering, setWhetherContractLabourNumbering] = useState(
-    inspectionContract?.whether_contract_labour_numbering || ""
-  );
-  const [whetherNoticesRegardingRatesOfWages, setWhetherNoticesRegardingRatesOfWages] = useState(
-    inspectionContract?.whether_notices_regarding_rates_of_wages || ""
-  );
-  const [whetherNoticeRegardingNames, setWhetherNoticeRegardingNames] = useState(
-    inspectionContract?.whether_notice_regarding_names || ""
-  );
-  const [whetherCopyOfEachNoticeDisplayed, setWhetherCopyOfEachNoticeDisplayed] = useState(
-    inspectionContract?.whether_copy_of_each_notice_displayed || ""
-  );
-  const [whetherNoticesShowingWagePeriod, setWhetherNoticesShowingWagePeriod] = useState(
-    inspectionContract?.whether_notices_showing_wage_period || ""
-  );
-  const [whetherIntimationOfCommencement, setWhetherIntimationOfCommencement] = useState(
-    inspectionContract?.whether_intimation_of_commencement || ""
-  );
-  const [whetherHalfYearlyReturn, setWhetherHalfYearlyReturn] = useState(
-    inspectionContract?.whether_half_yearly_return || ""
-  );
-  const [whetherContractorHasEnsuredPresenceOfRepresentative, setWhetherContractorHasEnsuredPresenceOfRepresentative] = useState(
-    inspectionContract?.whether_contractor_has_ensured_presence_of_representative || ""
-  );
-  const [whetherContractorEnsuredPaymentOfWages, setWhetherContractorEnsuredPaymentOfWages] = useState(
-    inspectionContract?.whether_contractor_ensured_payment_of_wages || ""
-  );
-  const [whetherRegisterOfPersonMaintained, setWhetherRegisterOfPersonMaintained] = useState(
-    inspectionContract?.whether_register_of_person_maintained || ""
-  );
-  const [whetherWageRegisterMaintained, setWhetherWageRegisterMaintained] = useState(
-    inspectionContract?.whether_wage_register_maintained || ""
-  );
-  const [whetherContractorObtainedSigThumbImpression, setWhetherContractorObtainedSigThumbImpression] = useState(
-    inspectionContract?.whether_contractor_obtained_sig_thumb_impression || ""
-  );
-  const [whetherWelfareFacilitiesRegardingDrinkingWater, setWhetherWelfareFacilitiesRegardingDrinkingWater] = useState(
-    inspectionContract?.whether_welfare_facilities_regarding_drinking_water || ""
-  );
-  const [whetherContractorCrecheFacility, setWhetherContractorCrecheFacility] = useState(
-    inspectionContract?.whether_contractor_creche_facility || ""
-  );
-  const [whetherContractorProvidesCanteenFacility, setWhetherContractorProvidesCanteenFacility] = useState(
-    inspectionContract?.whether_contractor_provides_canteen_facility || ""
-  );
-  const [whetherContractorProvidesRestRooms, setWhetherContractorProvidesRestRooms] = useState(
-    inspectionContract?.whether_contractor_prvides_rest_rooms || ""
-  );
-  const [whetherFirstAidProvided, setWhetherFirstAidProvided] = useState(
-    inspectionContract?.whether_first_aid_provided || ""
-  );
-  const [whetherContractorIssuedEmploymentCard, setWhetherContractorIssuedEmploymentCard] = useState(
-    inspectionContract?.whether_contractor_issued_employment_card || ""
-  );
-  const [whetherDateMaintainedInEmploymentCard, setWhetherDateMaintainedInEmploymentCard] = useState(
-    inspectionContract?.whether_date_maintained_in_employment_card || ""
-  );
-  const [whetherContractorIssuedServiceCertificate, setWhetherContractorIssuedServiceCertificate] = useState(
-    inspectionContract?.whether_contractor_issued_service_certificate || ""
-  );
-  const [whetherWageSlipsFormXIXIssued, setWhetherWageSlipsFormXIXIssued] = useState(
-    inspectionContract?.whether_wage_slips_formxix_issued || ""
+  // Website Blade-aligned findings. These keys are persisted exactly as in the web form.
+  const [contractProvisionValues, setContractProvisionValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(contractProvisionFields.map(([key]) => [key, inspectionContract?.[key] || ""]))
   );
 
+  const updateContractProvision = (key: string, value: string) => {
+    setContractProvisionValues((previous) => ({ ...previous, [key]: value }));
+  };
+
   // ===== SECTION 5: Directions =====
-  const [directions, setDirections] = useState(
-    inspectionContract?.contract_directions || [""]
+  const [directions, setDirections] = useState<string[]>(
+    Array.isArray(inspectionContract?.contract_directions) && inspectionContract.contract_directions.length
+      ? inspectionContract.contract_directions
+      : [""]
+  );
+  const [hasDirections, setHasDirections] = useState<string>(
+    inspectionContract?.has_directions_contract === "Yes" || inspectionContract?.has_directions_contract === "No"
+      ? inspectionContract.has_directions_contract
+      : inspectionContract?.contract_has_directions === "Yes" || inspectionContract?.contract_has_directions === "No"
+        ? inspectionContract.contract_has_directions
+      : Array.isArray(inspectionContract?.contract_directions) && inspectionContract.contract_directions.some((item: any) => String(item ?? "").trim())
+        ? "Yes"
+        : ""
   );
 
   const addDirection = () => {
@@ -426,66 +385,29 @@ export default function ContractLabourForm({
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!issueOfAppointmentLetters)
-      newErrors.issue_of_appointment_letters_contract = "This field is required";
-    if (!issueOfIdentityCard)
-      newErrors.issue_of_identity_card_contract = "This field is required";
-    if (!issueOfPayslip)
-      newErrors.issue_of_payslip_contract = "This field is required";
-    if (!applicableOfESIC)
-      newErrors.applicable_of_ESIC_contract = "This field is required";
-    if (!maintenanceOfRegisters)
-      newErrors.maintenance_of_registers_contract = "This field is required";
-    if (!annualRepSubmitted)
-      newErrors.whether_annual_rep_submitted_contract = "This field is required";
-    if (!isAdolescentEmployed)
-      newErrors.is_adolescent_employed_contract = "This field is required";
-    if (!whetherLicenseObtained)
-      newErrors.whether_license_obtained = "This field is required";
-    if (!whetherContractLabourNumbering)
-      newErrors.whether_contract_labour_numbering = "This field is required";
-    if (!whetherNoticesRegardingRatesOfWages)
-      newErrors.whether_notices_regarding_rates_of_wages = "This field is required";
-    if (!whetherNoticeRegardingNames)
-      newErrors.whether_notice_regarding_names = "This field is required";
-    if (!whetherCopyOfEachNoticeDisplayed)
-      newErrors.whether_copy_of_each_notice_displayed = "This field is required";
-    if (!whetherNoticesShowingWagePeriod)
-      newErrors.whether_notices_showing_wage_period = "This field is required";
-    if (!whetherIntimationOfCommencement)
-      newErrors.whether_intimation_of_commencement = "This field is required";
-    if (!whetherHalfYearlyReturn)
-      newErrors.whether_half_yearly_return = "This field is required";
-    if (!whetherContractorHasEnsuredPresenceOfRepresentative)
-      newErrors.whether_contractor_has_ensured_presence_of_representative = "This field is required";
-    if (!whetherContractorEnsuredPaymentOfWages)
-      newErrors.whether_contractor_ensured_payment_of_wages = "This field is required";
-    if (!whetherRegisterOfPersonMaintained)
-      newErrors.whether_register_of_person_maintained = "This field is required";
-    if (!whetherWageRegisterMaintained)
-      newErrors.whether_wage_register_maintained = "This field is required";
-    if (!whetherContractorObtainedSigThumbImpression)
-      newErrors.whether_contractor_obtained_sig_thumb_impression = "This field is required";
-    if (!whetherWelfareFacilitiesRegardingDrinkingWater)
-      newErrors.whether_welfare_facilities_regarding_drinking_water = "This field is required";
-    if (!whetherContractorCrecheFacility)
-      newErrors.whether_contractor_creche_facility = "This field is required";
-    if (!whetherContractorProvidesCanteenFacility)
-      newErrors.whether_contractor_provides_canteen_facility = "This field is required";
-    if (!whetherContractorProvidesRestRooms)
-      newErrors.whether_contractor_prvides_rest_rooms = "This field is required";
-    if (!whetherFirstAidProvided)
-      newErrors.whether_first_aid_provided = "This field is required";
-    if (!whetherContractorIssuedEmploymentCard)
-      newErrors.whether_contractor_issued_employment_card = "This field is required";
-    if (!whetherDateMaintainedInEmploymentCard)
-      newErrors.whether_date_maintained_in_employment_card = "This field is required";
-    if (!whetherContractorIssuedServiceCertificate)
-      newErrors.whether_contractor_issued_service_certificate = "This field is required";
-    if (!whetherWageSlipsFormXIXIssued)
-      newErrors.whether_wage_slips_formxix_issued = "This field is required";
-    if (!additionalRemarks.trim())
-      newErrors.additional_remarks2 = "This field is required";
+    if (hasDirections !== "Yes" && hasDirections !== "No") {
+      newErrors.has_directions_contract = "Please select Yes or No for directions.";
+    }
+
+    if (hasDirections === "Yes") {
+      const nonEmptyDirections = directions
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean);
+
+      if (nonEmptyDirections.length === 0) {
+        newErrors.contract_directions = "Please enter at least one direction.";
+      }
+
+      directions.forEach((item, index) => {
+        if (String(item ?? "").trim().length > 255) {
+          newErrors[`contract_directions_${index}`] = "Each direction must not exceed 255 characters.";
+        }
+      });
+    }
+
+    if (!additionalRemarks.trim()) {
+      newErrors.additional_remarks2 = "Additional Remarks is required.";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -502,52 +424,16 @@ export default function ContractLabourForm({
       reference_number: referenceNumber || "",
       inspection_type: "contract",
 
-      // Safety measures
-      cleanliness_workplace_contract: cleanlinessWorkplace ? "Yes" : "No",
-      adequate_lighting_contract: adequateLighting ? "Yes" : "No",
-      proper_ventilation_contract: properVentilation ? "Yes" : "No",
-      fire_prevention_measures_contract: firePreventionMeasures ? "Yes" : "No",
-      accident_prevention_contract: accidentPrevention ? "Yes" : "No",
-
-      // Inspection criteria
-      issue_of_appointment_letters_contract: issueOfAppointmentLetters,
-      issue_of_identity_card_contract: issueOfIdentityCard,
-      issue_of_payslip_contract: issueOfPayslip,
-      applicable_of_ESIC_contract: applicableOfESIC,
-      ESIC_contract_no_of_empl: esicNoOfEmpl,
-      maintenance_of_registers_contract: maintenanceOfRegisters,
-      whether_annual_rep_submitted_contract: annualRepSubmitted,
-      is_adolescent_employed_contract: isAdolescentEmployed,
-
       // Adolescent details
       adolescent_details_contract: adolescentDetails,
 
-      // Contract labour provisions
-      whether_license_obtained: whetherLicenseObtained,
-      whether_contract_labour_numbering: whetherContractLabourNumbering,
-      whether_notices_regarding_rates_of_wages: whetherNoticesRegardingRatesOfWages,
-      whether_notice_regarding_names: whetherNoticeRegardingNames,
-      whether_copy_of_each_notice_displayed: whetherCopyOfEachNoticeDisplayed,
-      whether_notices_showing_wage_period: whetherNoticesShowingWagePeriod,
-      whether_intimation_of_commencement: whetherIntimationOfCommencement,
-      whether_half_yearly_return: whetherHalfYearlyReturn,
-      whether_contractor_has_ensured_presence_of_representative: whetherContractorHasEnsuredPresenceOfRepresentative,
-      whether_contractor_ensured_payment_of_wages: whetherContractorEnsuredPaymentOfWages,
-      whether_register_of_person_maintained: whetherRegisterOfPersonMaintained,
-      whether_wage_register_maintained: whetherWageRegisterMaintained,
-      whether_contractor_obtained_sig_thumb_impression: whetherContractorObtainedSigThumbImpression,
-      whether_welfare_facilities_regarding_drinking_water: whetherWelfareFacilitiesRegardingDrinkingWater,
-      whether_contractor_creche_facility: whetherContractorCrecheFacility,
-      whether_contractor_provides_canteen_facility: whetherContractorProvidesCanteenFacility,
-      whether_contractor_prvides_rest_rooms: whetherContractorProvidesRestRooms,
-      whether_first_aid_provided: whetherFirstAidProvided,
-      whether_contractor_issued_employment_card: whetherContractorIssuedEmploymentCard,
-      whether_date_maintained_in_employment_card: whetherDateMaintainedInEmploymentCard,
-      whether_contractor_issued_service_certificate: whetherContractorIssuedServiceCertificate,
-      whether_wage_slips_formxix_issued: whetherWageSlipsFormXIXIssued,
-
+      // Website Blade-aligned contract provisions (items 1–38)
+      ...contractProvisionValues,
       // Directions
-      contract_directions: directions,
+      has_directions_contract: hasDirections,
+      contract_directions: hasDirections === "Yes"
+        ? directions.map((item) => String(item ?? "").trim()).filter(Boolean)
+        : [],
 
       // Remarks
       additional_remarks2: additionalRemarks,
@@ -567,140 +453,54 @@ export default function ContractLabourForm({
       <View style={styles.container}>
         <Text style={styles.title}>Contract Labour Inspection</Text>
 
-        {/* ===== SECTION 1: Workplace Safety and Health Measures ===== */}
-        <SectionTitle>Workplace Safety and Health Measures</SectionTitle>
+        {/* ===== Contract Labour Provisions: Questions 1–38 in sequence ===== */}
+        <SectionTitle>
+          Inspection Report on The Contract Labour (Under Occupational Safety, Health and Working Conditions Code, 2020)
+        </SectionTitle>
 
-        <Row>
-          <Label>Ensuring proper cleanliness in the workplace</Label>
-          <Switch
-            value={cleanlinessWorkplace}
-            onValueChange={setCleanlinessWorkplace}
-          />
-        </Row>
-
-        <Row>
-          <Label>Providing adequate lighting in all work areas</Label>
-          <Switch
-            value={adequateLighting}
-            onValueChange={setAdequateLighting}
-          />
-        </Row>
-
-        <Row>
-          <Label>
-            Maintaining proper ventilation to ensure a healthy working environment
-          </Label>
-          <Switch
-            value={properVentilation}
-            onValueChange={setProperVentilation}
-          />
-        </Row>
-
-        <Row>
-          <Label>
-            Taking necessary measures for prevention of fire, including safety arrangements and emergency preparedness
-          </Label>
-          <Switch
-            value={firePreventionMeasures}
-            onValueChange={setFirePreventionMeasures}
-          />
-        </Row>
-
-        <Row>
-          <Label>
-            Taking all necessary preventive measures to avoid accidents at the workplace
-          </Label>
-          <Switch
-            value={accidentPrevention}
-            onValueChange={setAccidentPrevention}
-          />
-        </Row>
-
-        {/* ===== SECTION 2: Inspection Criteria ===== */}
-        <SectionTitle>Inspection Criteria</SectionTitle>
-
-        <View style={styles.formGroup}>
-          <Label required>1. Issue of appointment letters</Label>
-          <SelectDropdown
-            value={issueOfAppointmentLetters}
-            onSelect={setIssueOfAppointmentLetters}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>2. Issue of identity cards</Label>
-          <SelectDropdown
-            value={issueOfIdentityCard}
-            onSelect={setIssueOfIdentityCard}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>3. Issue of payslips</Label>
-          <SelectDropdown
-            value={issueOfPayslip}
-            onSelect={setIssueOfPayslip}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            4. Applicability of ESIC to the establishment as per the Employees' State Insurance Act, 1948
-          </Label>
-          <SelectDropdown
-            value={applicableOfESIC}
-            onSelect={(val) => {
-              setApplicableOfESIC(val);
-              if (val !== "Yes") setEsicNoOfEmpl("");
-            }}
-            options={yesNoOptions}
-          />
-          {applicableOfESIC === "Yes" && (
-            <TextInputField
-              value={esicNoOfEmpl}
-              onChangeText={setEsicNoOfEmpl}
-              placeholder="Enter number of employees"
-              maxLength={255}
+        {contractProvisionFields.slice(0, 18).map(([key, label]) => (
+          <View key={key} style={styles.formGroup}>
+            <Label>{label}</Label>
+            <SelectDropdown
+              value={contractProvisionValues[key] || ""}
+              onSelect={(value) => updateContractProvision(key, value)}
+              options={yesNoOptions}
+              placeholder="Select Yes or No"
             />
-          )}
-        </View>
+            {errors[key] && <ErrorText>{errors[key]}</ErrorText>}
+          </View>
+        ))}
 
-        <View style={styles.formGroup}>
-          <Label required>
-            5. Maintenance of registers against each employee
-          </Label>
-          <SelectDropdown
-            value={maintenanceOfRegisters}
-            onSelect={setMaintenanceOfRegisters}
-            options={yesNoOptions}
-          />
-        </View>
+        {/* Questions 19–25: Workplace Safety and Health Measures */}
+        <SectionTitle>Workplace Safety and Health Measures</SectionTitle>
+        {contractProvisionFields.slice(18, 25).map(([key, label]) => (
+          <View key={key} style={styles.formGroup}>
+            <Label>{label}</Label>
+            <SelectDropdown
+              value={contractProvisionValues[key] || ""}
+              onSelect={(value) => updateContractProvision(key, value)}
+              options={yesNoOptions}
+              placeholder="Select Yes or No"
+            />
+            {errors[key] && <ErrorText>{errors[key]}</ErrorText>}
+          </View>
+        ))}
 
-        <View style={styles.formGroup}>
-          <Label required>
-            6. Whether annual return is submitted or not?
-          </Label>
-          <SelectDropdown
-            value={annualRepSubmitted}
-            onSelect={setAnnualRepSubmitted}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>7. Has any adolescent been employed?</Label>
-          <SelectDropdown
-            value={isAdolescentEmployed}
-            onSelect={setIsAdolescentEmployed}
-            options={yesNoOptions}
-          />
-        </View>
+        {contractProvisionFields.slice(25).map(([key, label]) => (
+          <View key={key} style={styles.formGroup}>
+            <Label>{label}</Label>
+            <SelectDropdown
+              value={contractProvisionValues[key] || ""}
+              onSelect={(value) => updateContractProvision(key, value)}
+              options={yesNoOptions}
+              placeholder="Select Yes or No"
+            />
+            {errors[key] && <ErrorText>{errors[key]}</ErrorText>}
+          </View>
+        ))}
 
         {/* ===== SECTION 3: Adolescent Worker Details ===== */}
-        {isAdolescentEmployed === "Yes" && (
+        {contractProvisionValues.is_adolescent_employed_contract === "Yes" && (
           <View style={styles.section}>
             <SectionTitle>Adolescent Worker Details</SectionTitle>
             {adolescentDetails.map((adolescent, index) => (
@@ -720,7 +520,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>
+                  <Label>
                     a. Whether intimation has been provided to the concerned Labour Office
                   </Label>
                   <SelectDropdown
@@ -733,7 +533,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>b. Name of the adolescent</Label>
+                  <Label>b. Name of the adolescent</Label>
                   <TextInputField
                     value={adolescent.name}
                     onChangeText={(val) => updateAdolescent(index, "name", val)}
@@ -743,7 +543,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>c. Address of the adolescent</Label>
+                  <Label>c. Address of the adolescent</Label>
                   <TextInputField
                     value={adolescent.address}
                     onChangeText={(val) =>
@@ -755,7 +555,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>d. Age of the adolescent</Label>
+                  <Label>d. Age of the adolescent</Label>
                   <NumberInput
                     value={adolescent.age}
                     onChangeText={(val) => updateAdolescent(index, "age", val)}
@@ -764,19 +564,19 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>e. Age proof (Upload document)</Label>
+                  <Label>e. Age proof (Upload document)</Label>
                   <TouchableOpacity
                     style={styles.uploadBtn}
                     onPress={() => pickAgeProofDocument(index)}
                   >
                     <Text style={styles.uploadBtnText}>
-                      {adolescent.age_proof_name || "Choose File"}
+                      {adolescent.age_proof_name || (typeof adolescent.age_proof === "string" ? adolescent.age_proof.split("/").pop() : "Choose File")}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>
+                  <Label>
                     f. Whether engaged in hazardous occupations
                   </Label>
                   <SelectDropdown
@@ -789,7 +589,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>g. Working hours</Label>
+                  <Label>g. Working hours</Label>
                   <TextInputField
                     value={adolescent.working_hours}
                     onChangeText={(val) =>
@@ -801,7 +601,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>h. Whether maintains register or not</Label>
+                  <Label>h. Whether maintains register or not</Label>
                   <SelectDropdown
                     value={adolescent.maintain_register}
                     onSelect={(val) =>
@@ -812,7 +612,7 @@ export default function ContractLabourForm({
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Label required>i. Wage paid to the adolescent</Label>
+                  <Label>i. Wage paid to the adolescent</Label>
                   <NumberInput
                     value={adolescent.wage_amount}
                     onChangeText={(val) =>
@@ -829,282 +629,35 @@ export default function ContractLabourForm({
           </View>
         )}
 
-        {/* ===== SECTION 4: Contract Labour Provisions ===== */}
-        <SectionTitle>
-          Inspection Report on The Contract Labour (Under Occupational Safety, Health and Working Conditions Code, 2000)
-        </SectionTitle>
-
+        {/* ===== SECTION 5: Conditional Directions ===== */}
         <View style={styles.formGroup}>
-          <Label required>
-            1. Whether License obtained while executing contract work through contract labour [Section 47]
-          </Label>
-          <SelectDropdown
-            value={whetherLicenseObtained}
-            onSelect={setWhetherLicenseObtained}
-            options={yesNoOptions}
-          />
+          <Label required>Is there any directions to be mentioned?</Label>
+          <SelectDropdown value={hasDirections} onSelect={setHasDirections} options={yesNoOptions} placeholder="Select Yes or No" />
+          {errors.has_directions_contract && <ErrorText>{errors.has_directions_contract}</ErrorText>}
+          {errors.contract_directions && <ErrorText>{errors.contract_directions}</ErrorText>}
         </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            2. Whether contract labour exceeds maximum number specified in licence [Section 48]
-          </Label>
-          <SelectDropdown
-            value={whetherContractLabourNumbering}
-            onSelect={setWhetherContractLabourNumbering}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            3. Whether notices regarding rates of wages, hours of work, wage period etc. displayed [Section 31(1)]
-          </Label>
-          <SelectDropdown
-            value={whetherNoticesRegardingRatesOfWages}
-            onSelect={setWhetherNoticesRegardingRatesOfWages}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            4. Whether notice of Inspector's name & address displayed [Rule 81(i)]
-          </Label>
-          <SelectDropdown
-            value={whetherNoticeRegardingNames}
-            onSelect={setWhetherNoticeRegardingNames}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            5. Whether copy of displayed notices sent to Inspector [Section 31(2)]
-          </Label>
-          <SelectDropdown
-            value={whetherCopyOfEachNoticeDisplayed}
-            onSelect={setWhetherCopyOfEachNoticeDisplayed}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            6. Whether wage period & disbursement notices informed digitally to Principal Employer [Section 55(2)]
-          </Label>
-          <SelectDropdown
-            value={whetherNoticesShowingWagePeriod}
-            onSelect={setWhetherNoticesShowingWagePeriod}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            7. Whether intimation of commencement/completion submitted within 30 days [Section 5(1)]
-          </Label>
-          <SelectDropdown
-            value={whetherIntimationOfCommencement}
-            onSelect={setWhetherIntimationOfCommencement}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            8. Whether Yearly Return in Form X submitted [Section 33(d)]
-          </Label>
-          <SelectDropdown
-            value={whetherHalfYearlyReturn}
-            onSelect={setWhetherHalfYearlyReturn}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            9. Whether authorised representative present during wage disbursement [Section 55(2)]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorHasEnsuredPresenceOfRepresentative}
-            onSelect={setWhetherContractorHasEnsuredPresenceOfRepresentative}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            10. Whether contractor ensured payment of wages within prescribed time [Section 55(2)]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorEnsuredPaymentOfWages}
-            onSelect={setWhetherContractorEnsuredPaymentOfWages}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            11. Whether register of persons employed maintained [Section 33(a)]
-          </Label>
-          <SelectDropdown
-            value={whetherRegisterOfPersonMaintained}
-            onSelect={setWhetherRegisterOfPersonMaintained}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            12. Whether wage register maintained [Section 33(a)]
-          </Label>
-          <SelectDropdown
-            value={whetherWageRegisterMaintained}
-            onSelect={setWhetherWageRegisterMaintained}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            13. Whether signature/thumb impression obtained on wage register [Section 33(a)]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorObtainedSigThumbImpression}
-            onSelect={setWhetherContractorObtainedSigThumbImpression}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            14. Whether welfare facilities provided (water, latrine, washing) [Section 53]
-          </Label>
-          <SelectDropdown
-            value={whetherWelfareFacilitiesRegardingDrinkingWater}
-            onSelect={setWhetherWelfareFacilitiesRegardingDrinkingWater}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            15. Whether creche facility provided when 20+ women employed [Section 53]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorCrecheFacility}
-            onSelect={setWhetherContractorCrecheFacility}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            16. Whether canteen facility provided when 100+ contract labour employed [Section 53]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorProvidesCanteenFacility}
-            onSelect={setWhetherContractorProvidesCanteenFacility}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            17. Whether rest rooms provided for night halt [Section 53]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorProvidesRestRooms}
-            onSelect={setWhetherContractorProvidesRestRooms}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            18. Whether first aid facilities provided [Section 53]
-          </Label>
-          <SelectDropdown
-            value={whetherFirstAidProvided}
-            onSelect={setWhetherFirstAidProvided}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            19. Whether employment id issued to each worker [Section 6(1)(f)]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorIssuedEmploymentCard}
-            onSelect={setWhetherContractorIssuedEmploymentCard}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            20. Whether employment card maintained up to date [Section 6(1)(f)]
-          </Label>
-          <SelectDropdown
-            value={whetherDateMaintainedInEmploymentCard}
-            onSelect={setWhetherDateMaintainedInEmploymentCard}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            21. Whether experience certificate issued on termination [Section 56]
-          </Label>
-          <SelectDropdown
-            value={whetherContractorIssuedServiceCertificate}
-            onSelect={setWhetherContractorIssuedServiceCertificate}
-            options={yesNoOptions}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Label required>
-            22. Whether wage slips in Form XIX issued before wage disbursement [Section 33(c)]
-          </Label>
-          <SelectDropdown
-            value={whetherWageSlipsFormXIXIssued}
-            onSelect={setWhetherWageSlipsFormXIXIssued}
-            options={yesNoOptions}
-          />
-        </View>
-
-        {/* ===== SECTION 5: Directions ===== */}
-        <SectionTitle>Directions <Text style={styles.required}>*</Text></SectionTitle>
-        {directions.map((direction, index) => (
-          <View key={index} style={styles.directionRow}>
-            <View style={{ flex: 1 }}>
-              <TextInputField
-                value={direction}
-                onChangeText={(val) => updateDirection(index, val)}
-                placeholder="Enter Direction"
-                maxLength={255}
-              />
-            </View>
-            {index === 0 ? (
-              <TouchableOpacity
-                style={styles.addDirectionBtn}
-                onPress={addDirection}
-              >
-                <Text style={styles.addDirectionBtnText}>Add</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.removeDirectionBtn}
-                onPress={() => removeDirection(index)}
-              >
-                <Text style={styles.removeDirectionBtnText}>Remove</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
+        {hasDirections === "Yes" && (
+          <>
+            <SectionTitle>Directions</SectionTitle>
+            {directions.map((direction, index) => (
+              <View key={index} style={styles.directionRow}>
+                <View style={{ flex: 1 }}>
+                  <TextInputField value={direction} onChangeText={(val) => updateDirection(index, val)} placeholder="Enter Direction" maxLength={255} />
+                  {errors[`contract_directions_${index}`] && <ErrorText>{errors[`contract_directions_${index}`]}</ErrorText>}
+                </View>
+                {index === 0 ? (
+                  <TouchableOpacity style={styles.addDirectionBtn} onPress={addDirection}>
+                    <Text style={styles.addDirectionBtnText}>Add</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.removeDirectionBtn} onPress={() => removeDirection(index)}>
+                    <Text style={styles.removeDirectionBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </>
+        )}
 
         {/* ===== SECTION 6: Additional Remarks ===== */}
         <View style={styles.formGroup}>
@@ -1115,7 +668,6 @@ export default function ContractLabourForm({
             placeholder="Enter Remarks"
             multiline
             numberOfLines={3}
-            maxLength={255}
           />
           {errors.additional_remarks2 && (
             <ErrorText>{errors.additional_remarks2}</ErrorText>
